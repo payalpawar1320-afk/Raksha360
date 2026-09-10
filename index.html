@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raksha360 — AI-Powered Landslide Early Warning System | NER</title>
+  <meta name="description" content="Raksha360: AI-powered landslide risk monitoring and early warning system for North East India. Detect the Signs. Protect Lives." />
+  <meta name="theme-color" content="#1e293b" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data/ner_data.js"></script>
+  <script src="data/ner_predictions.js"></script>
+  <script src="translations.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     TOPBAR / NAVIGATION
+══════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark" title="Raksha360" aria-label="Raksha360 Shield">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-9-4z"/>
+        <path d="m8 11 3 3 5-5" stroke="#ffffff"/>
+      </svg>
+    </div>
+    <div class="logo-text-block">
+      <span class="logo-name">Raksha<span>360</span></span>
+      <span class="logo-tagline">Landslide Early Warning · NER</span>
+    </div>
+    <!-- Legacy selectors kept for any JS compatibility -->
+    <span class="logo-dot" style="display:none"></span>
+    <span class="logo-text" style="display:none">Raksha360</span>
+  </div>
+
+  <nav class="topbar-nav">
+    <a href="#" class="nav-link active" id="navHome" onclick="showLanding(event)" data-i18n="nav_home">Home</a>
+    <a href="#" class="nav-link" id="navMap" onclick="navGoTo(event,'sec-map')" data-i18n="nav_map">Risk Map</a>
+    <a href="#" class="nav-link" id="navAlerts" onclick="navGoTo(event,'sec-warning')" data-i18n="nav_alerts">Alerts</a>
+    <a href="#" class="nav-link" id="navScenario" onclick="navGoTo(event,'sec-whatif')" data-i18n="nav_scenario">Rainfall Scenario</a>
+    <a href="#" class="nav-link" id="navReport" onclick="navGoTo(event,'sec-report')" data-i18n="nav_report">Report Hazard</a>
+    <a href="#about" class="nav-link" id="navAbout" onclick="showLanding(event)" data-i18n="nav_about">About</a>
+  </nav>
+
+  <div class="topbar-right">
+    <div class="lang-switch-wrap" role="group" aria-label="Language selection">
+      <button class="lang-btn active" id="btnLangEn" onclick="setLanguage('en')" title="English">EN</button>
+      <button class="lang-btn" id="btnLangHi" onclick="setLanguage('hi')" title="हिन्दी (Hindi)">हिन्दी</button>
+    </div>
+    <span class="data-badge" id="dataBadge">Loading…</span>
+    <span class="status-dot"></span>
+    <span class="status-text" id="statusLiveText" data-i18n="live">Live</span>
+    <button class="btn-authority-toggle" id="btnAuthorityToggle" onclick="toggleAuthorityView()" title="Switch to Authority Dashboard">
+      🏛 <span data-i18n="authority_btn">Authority</span>
+    </button>
+  </div>
+</header>
+
+
+<!-- ══════════════════════════════════════════════════
+     LOCATION SELECTOR MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="locationModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-text">
+        <h2 id="modalTitle" data-i18n="modal_title">📍 Check Risk Near Me</h2>
+        <p data-i18n="modal_sub">No account needed — public risk information</p>
+      </div>
+      <button class="modal-close" onclick="closeLocationModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Option A: GPS -->
+      <button class="btn-use-location" id="btnUseLocation" onclick="useMyLocation()" data-i18n="modal_use_location">
+        📡 Use My Location
+      </button>
+
+      <div class="loc-option-divider" data-i18n="modal_or_select">or select manually</div>
+
+      <!-- Option B: Dropdown -->
+      <div class="loc-select-row">
+        <label class="loc-select-label" for="locState" data-i18n="modal_state">State</label>
+        <select class="loc-select" id="locState" onchange="populateDistrictSelect()">
+          <option value="" data-i18n="modal_select_state">Select State…</option>
+        </select>
+      </div>
+      <div class="loc-select-row">
+        <label class="loc-select-label" for="locStation" data-i18n="modal_station">District / Station</label>
+        <select class="loc-select" id="locStation">
+          <option value="" data-i18n="modal_select_station">Select Station…</option>
+        </select>
+      </div>
+
+      <button class="btn-check-risk" onclick="checkRiskFromModal()" data-i18n="modal_view_risk">
+        View Risk Assessment →
+      </button>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     VIEW: LANDING PAGE
+══════════════════════════════════════════════════ -->
+<div id="view-landing" class="view view--active">
+
+  <!-- ── HERO ──────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-image-bg" aria-hidden="true"></div>
+      <div class="hero-overlay" aria-hidden="true"></div>
+      <div class="hero-grid"></div>
+      <div class="hero-terrain"></div>
+    </div>
+
+    <div class="hero-content">
+      <!-- Left: Text -->
+      <div class="hero-left">
+        <div class="hero-badge">
+          <span class="hero-badge-dot"></span>
+          <span data-i18n="hero_badge">Raksha360 · NER Landslide Monitoring System · SIH 2026</span>
+        </div>
+
+        <h1 class="hero-title">
+          Raksha<br>
+          <span class="hero-title-accent">360</span>
+        </h1>
+        <p class="hero-subtitle" data-i18n="hero_title_sub">AI-Powered Landslide Early Warning &amp; Risk Monitoring</p>
+        <p class="hero-tagline" data-i18n="hero_tagline">"Detect the Signs. Protect Lives."</p>
+        <p class="hero-desc" data-i18n="hero_desc">
+          AI-powered landslide risk monitoring that helps communities and
+          authorities understand changing terrain risk before it becomes a disaster.
+          Covering all of North East India — real rainfall data, real AI predictions.
+        </p>
+
+        <div class="hero-ctas">
+          <button class="btn-primary" onclick="openLocationModal()" data-i18n="hero_cta_near">
+            📍 Check Risk Near Me
+          </button>
+          <button class="btn-secondary" onclick="showCitizenDirect()" data-i18n="hero_cta_map">
+            🗺 Explore Risk Map
+          </button>
+          <button class="btn-secondary" onclick="navGoTo(null,'sec-report')" data-i18n="hero_cta_report">
+            📷 Report a Hazard
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Risk Preview Card -->
+      <div class="hero-visual">
+        <div class="hero-risk-preview">
+          <div class="preview-location">
+            📍 <strong id="previewStationName">Kohima, Nagaland</strong>
+          </div>
+          <div class="preview-risk-number" id="previewScore">63</div>
+          <div class="preview-risk-label" id="previewLevel">
+            <span>🟠</span> Elevated Risk
+          </div>
+          <div class="preview-bar-wrap">
+            <div class="preview-bar-track">
+              <div class="preview-bar-fill" id="previewBar" style="width:63%"></div>
+            </div>
+          </div>
+          <div class="preview-factors">
+            <div class="preview-factor">
+              <span class="preview-factor-icon">🌧</span>
+              <span class="preview-factor-name">Rainfall</span>
+              <span class="preview-factor-level lvl-high" id="prevFactorRain">HIGH</span>
+            </div>
+            <div class="preview-factor">
+              <span class="preview-factor-icon">⛰</span>
+              <span class="preview-factor-name">Slope &amp; Elevation</span>
+              <span class="preview-factor-level lvl-high">HIGH</span>
+            </div>
+            <div class="preview-factor">
+              <span class="preview-factor-icon">💧</span>
+              <span class="preview-factor-name">Soil Moisture</span>
+              <span class="preview-factor-level lvl-medium">MEDIUM</span>
+            </div>
+            <div class="preview-factor">
+              <span class="preview-factor-icon">🌳</span>
+              <span class="preview-factor-name">Land Cover</span>
+              <span class="preview-factor-level lvl-low">LOW</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-scroll">
+      <span>↓</span>
+      scroll
+    </div>
+  </section>
+
+  <!-- ── CAPABILITIES ───────────────────────────── -->
+  <section class="capabilities">
+    <div class="cap-heading">
+      <h2>What Raksha360 does</h2>
+      <p>A complete early-warning pipeline — from terrain data to action guidance</p>
+    </div>
+    <div class="cap-grid">
+      <div class="cap-card">
+        <span class="cap-icon">🗺️</span>
+        <div class="cap-title">Monitor Risk</div>
+        <div class="cap-desc">Real-time landslide risk scores for monitoring stations across all 8 NE states, updated from live rainfall data.</div>
+      </div>
+      <div class="cap-card">
+        <span class="cap-icon">🧠</span>
+        <div class="cap-title">Understand Why</div>
+        <div class="cap-desc">Explainable AI shows which factors — rainfall, slope, soil moisture, past events — are driving risk in plain language.</div>
+      </div>
+      <div class="cap-card">
+        <span class="cap-icon">📈</span>
+        <div class="cap-title">Track Changes</div>
+        <div class="cap-desc">30-day rainfall history and 7-day rolling trend shows whether risk is rising, stable, or decreasing.</div>
+      </div>
+      <div class="cap-card">
+        <span class="cap-icon">🚨</span>
+        <div class="cap-title">Act Early</div>
+        <div class="cap-desc">Automated warnings, priority rankings for authorities, citizen hazard reporting, and clear safety guidance.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── JOURNEY ────────────────────────────────── -->
+  <section class="journey-section">
+    <div class="journey-inner">
+      <h2 class="journey-title">The Early Warning Journey</h2>
+      <p class="journey-sub">Raksha360 guides you from awareness to action</p>
+      <div class="journey-steps">
+        <div class="journey-step">
+          <div class="journey-step-pill">📍 Where am I?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">⚠️ What's the risk?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">🔍 Why is it high?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">📈 Is it rising?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">🏘 What's exposed?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">🌧 What if more rain?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">🛡 What do I do?</div>
+          <span class="journey-arrow">→</span>
+        </div>
+        <div class="journey-step">
+          <div class="journey-step-pill">📷 Report &amp; Verify</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ABOUT ─────────────────────────────────── -->
+  <section class="about-section" id="about">
+    <div class="about-inner">
+      <div class="about-text">
+        <h2>Built for North East India's Terrain</h2>
+        <p>North East India is one of the most landslide-prone regions in the world. Steep slopes, heavy monsoon rainfall, seismic activity, and fragile geology combine to create conditions where communities need early warning — not after the fact.</p>
+        <p>Raksha360 uses real rainfall data from the Open-Meteo Archive API (2025–2026), gradient boosting machine learning, and explainable AI to give both citizens and authorities a clear, actionable picture of risk.</p>
+        <p style="font-size:11px; color: var(--text-faint); font-style: italic;">Risk scores are model estimates. Not certified forecasts — always follow official government advisories.</p>
+      </div>
+      <div class="about-stats">
+        <div class="about-stat">
+          <div class="about-stat-num">12</div>
+          <div class="about-stat-label">Monitoring Stations</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-num">8</div>
+          <div class="about-stat-label">NE States Covered</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-num">Real</div>
+          <div class="about-stat-label">Rainfall Data 2025–26</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-num">360°</div>
+          <div class="about-stat-label">Predict → Warn → Verify</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LANDING CTA ────────────────────────────── -->
+  <div class="landing-cta-section">
+    <h2>Ready to check your area?</h2>
+    <p>Select your location to see current risk, understand why it's happening, and know what to do.</p>
+    <div class="landing-ctas">
+      <button class="btn-primary-dark" onclick="openLocationModal()">
+        📍 Check Risk Near Me
+      </button>
+      <button class="btn-secondary" style="background:var(--surface);color:var(--brand);border-color:var(--brand-light);" onclick="toggleAuthorityView()">
+        🏛 Authority Dashboard
+      </button>
+    </div>
+  </div>
+
+</div>
+<!-- end #view-landing -->
+
+
+<!-- ══════════════════════════════════════════════════
+     VIEW: CITIZEN DASHBOARD
+══════════════════════════════════════════════════ -->
+<div id="view-citizen" class="view">
+<main class="main">
+
+  <!-- ── ⚠️ WARNING BANNER ── -->
+  <div class="alert-banner" id="alertBanner" style="display:none">
+    <span class="alert-icon">🚨</span>
+    <span class="alert-msg" id="alertMsg"></span>
+    <button class="alert-close" onclick="document.getElementById('alertBanner').style.display='none'" aria-label="Close alert">✕</button>
+  </div>
+
+  <!-- ── WORKFLOW PIPELINE ── -->
+  <div class="workflow-bar" role="status" aria-label="Analysis pipeline status">
+    <div class="wf-step wf-done" title="Rainfall + Terrain data loaded">🌧 DATA</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step wf-done" id="wfAI" title="AI Model running">🧠 AI MODEL</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step wf-active" id="wfRisk">📊 RISK 0–100</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfWhy">🔍 WHY?</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfTrend">📈 TREND</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfImpact">🏘 IMPACT</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfWhatIf">🌧 SCENARIO</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfPriority">🚨 PRIORITY</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfReport">📷 REPORT</div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-step" id="wfWarning">⚠ WARN</div>
+  </div>
+
+  <!-- ══ STEP 0: LOCATION BREADCRUMB ══ -->
+  <div class="location-breadcrumb">
+    <div class="location-breadcrumb-left">
+      <div class="loc-pin-icon">📍</div>
+      <div>
+        <div class="loc-name-main" id="detailStation">–</div>
+        <div class="loc-sub-info" id="detailState">–</div>
+      </div>
+      <div class="loc-date-chip" id="detailDate">–</div>
+    </div>
+    <button class="btn-change-location" onclick="openLocationModal()">
+      🔄 Change Location
+    </button>
+  </div>
+
+  <!-- ══ STEP 1 + 2: RISK SCORE + DETAIL ══ -->
+  <section class="content-grid">
+
+    <!-- Station List -->
+    <div class="station-panel">
+      <div class="panel-header">
+        <span class="panel-header-title">📡 NER Monitoring Stations</span>
+        <span class="panel-header-sub">Select a station to inspect</span>
+      </div>
+      <div class="table-wrap">
+        <table class="station-table" role="grid">
+          <thead>
+            <tr>
+              <th scope="col">Location / State</th>
+              <th scope="col">Risk Level</th>
+              <th scope="col">Score</th>
+              <th scope="col">Today</th>
+              <th scope="col">7-Day</th>
+              <th scope="col">Elev.</th>
+            </tr>
+          </thead>
+          <tbody id="stationTableBody">
+            <tr><td colspan="6" class="table-loading">Loading data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detail + Explainer Panel -->
+    <aside class="detail-panel">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <span class="panel-card-title">📍 Selected Area</span>
+          <span class="risk-badge badge--low" id="detailBadge">LOW</span>
+        </div>
+
+        <!-- RISK GAUGE -->
+        <div class="gauge-wrap">
+          <div class="gauge-label">
+            <span>Landslide Risk</span>
+            <strong class="gauge-score" id="detailScore">– / 100</strong>
+          </div>
+          <div class="gauge-bar">
+            <div class="gauge-fill" id="gaugeFill" style="width:0%" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <p class="gauge-trend" id="detailTrend">–</p>
+        </div>
+
+        <!-- RAW DATA GRID -->
+        <div class="data-grid-2">
+          <div class="data-cell">
+            <span class="data-cell-label">🌧 Today Rain</span>
+            <span class="data-cell-val" id="detailRainToday">–</span>
+          </div>
+          <div class="data-cell">
+            <span class="data-cell-label">📅 7-Day</span>
+            <span class="data-cell-val" id="detailRain7d">–</span>
+          </div>
+          <div class="data-cell">
+            <span class="data-cell-label">📆 14-Day</span>
+            <span class="data-cell-val" id="detailRain14d">–</span>
+          </div>
+          <div class="data-cell">
+            <span class="data-cell-label">⛰ Elevation</span>
+            <span class="data-cell-val" id="detailElev">–</span>
+          </div>
+          <div class="data-cell" style="grid-column:1/-1">
+            <span class="data-cell-label">🌡 Temperature</span>
+            <span class="data-cell-val" id="detailTemp">–</span>
+          </div>
+        </div>
+
+        <!-- STEP 2: WHY? EXPLAINABLE AI -->
+        <div class="why-box">
+          <p class="why-title">🔍 Why is this area at risk? <span class="why-source">(Explainable AI)</span></p>
+          <div class="why-factors">
+            <div class="factor">
+              <span class="factor-icon">🌧</span>
+              <div class="factor-info">
+                <div class="factor-header">
+                  <span class="factor-name">Today's Rainfall</span>
+                  <span class="factor-val" id="factorRainVal">–</span>
+                </div>
+                <div class="factor-bar"><div class="factor-fill" id="factorRainBar" style="width:2%"></div></div>
+              </div>
+            </div>
+            <div class="factor">
+              <span class="factor-icon">📅</span>
+              <div class="factor-info">
+                <div class="factor-header">
+                  <span class="factor-name">7-Day Accumulation</span>
+                  <span class="factor-val" id="factor7dVal">–</span>
+                </div>
+                <div class="factor-bar"><div class="factor-fill" id="factor7dBar" style="width:2%"></div></div>
+              </div>
+            </div>
+            <div class="factor">
+              <span class="factor-icon">⛰</span>
+              <div class="factor-info">
+                <div class="factor-header">
+                  <span class="factor-name">Elevation &amp; Slope Risk</span>
+                  <span class="factor-val" id="factorElevVal">–</span>
+                </div>
+                <div class="factor-bar"><div class="factor-fill" id="factorElevBar" style="width:2%"></div></div>
+              </div>
+            </div>
+            <div class="factor">
+              <span class="factor-icon">🌡</span>
+              <div class="factor-info">
+                <div class="factor-header">
+                  <span class="factor-name">Temp. Variability</span>
+                  <span class="factor-val" id="factorTempVal">–</span>
+                </div>
+                <div class="factor-bar"><div class="factor-fill" id="factorTempBar" style="width:2%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ML PREDICTION BOX -->
+        <div class="ml-box" id="mlBox" style="display:none">
+          <p class="ml-title">AI Prediction <span class="ml-model-name" id="mlModelName"></span></p>
+          <div class="ml-row">
+            <div class="ml-cell">
+              <span class="ml-cell-label">Risk Class</span>
+              <span class="ml-cell-val" id="mlClass">–</span>
+            </div>
+            <div class="ml-cell">
+              <span class="ml-cell-label">Confidence</span>
+              <span class="ml-cell-val" id="mlConf">–</span>
+            </div>
+            <div class="ml-cell">
+              <span class="ml-cell-label">AI Score</span>
+              <span class="ml-cell-val" id="mlScore">–</span>
+            </div>
+          </div>
+          <p class="ml-feat-title">Top contributing factors:</p>
+          <div id="mlFactors" class="ml-factors"></div>
+          <p class="ml-accuracy" id="mlAccuracy"></p>
+        </div>
+
+        <div class="real-data-note">✅ REAL DATA — Open-Meteo Archive API (2025–2026)</div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ══ STEP 3: TREND ══ -->
+  <section class="chart-section" id="sec-trend">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
+          <span class="chart-title">📈 Is the Risk Rising?</span>
+          <span class="chart-sub">30-day daily rainfall (bars) + 7-day rolling average (line) — rising trend signals higher risk</span>
+        </div>
+        <div class="trend-indicator" id="trendIndicator">
+          <span class="trend-arrow" id="trendArrow">→</span>
+          <span class="trend-label" id="trendLabel">Calculating…</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="rainfallChart" height="160"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ RISK MAP ══ -->
+  <section class="map-section" id="sec-map">
+    <div class="map-card">
+
+      <!-- Map Header -->
+      <div class="map-header">
+        <div class="map-header-left">
+          <span class="map-title" data-i18n="map_title">🗺 Interactive Risk Map</span>
+          <span class="map-sub" data-i18n="map_sub">Click a marker to inspect that station · Colours show current risk level</span>
+        </div>
+        <div class="map-controls-row">
+          <!-- Layer toggles -->
+          <div class="map-layer-toggles">
+            <button class="map-layer-btn active" id="layerRisk"     onclick="toggleLayer('risk')"     title="Risk Markers" data-i18n="map_layer_risk">⚠ Risk</button>
+            <button class="map-layer-btn active" id="layerLabels"   onclick="toggleLayer('labels')"   title="Station Labels" data-i18n="map_layer_labels">🏷 Labels</button>
+            <button class="map-layer-btn"         id="layerRainfall" onclick="toggleLayer('rainfall')" title="Rainfall Heatmap" data-i18n="map_layer_rainfall">🌧 Rainfall</button>
+            <button class="map-layer-btn"         id="layerTerrain"  onclick="toggleLayer('terrain')"  title="Terrain View" data-i18n="map_layer_terrain">⛰ Terrain</button>
+          </div>
+          <!-- Basemap toggle -->
+          <div class="map-basemap-toggle">
+            <button class="map-base-btn active" id="baseStreet"  onclick="setBasemap('street')" data-i18n="map_base_street">Street</button>
+            <button class="map-base-btn"        id="baseSatellite" onclick="setBasemap('satellite')" data-i18n="map_base_satellite">Satellite</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="map-legend">
+        <span class="map-legend-title" data-i18n="map_legend_title">Risk Level:</span>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#b91c1c"></span><span data-i18n="map_legend_critical">Critical</span></div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#c2410c"></span><span data-i18n="map_legend_high">High</span></div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#b45309"></span><span data-i18n="map_legend_moderate">Moderate</span></div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#166534"></span><span data-i18n="map_legend_low">Low</span></div>
+        <div class="map-legend-sep"></div>
+        <span class="map-legend-note" data-i18n="map_legend_selected">★ = Selected station</span>
+      </div>
+
+      <!-- Map Canvas & Floating Inspector Wrapper -->
+      <div class="map-canvas-wrap">
+        <!-- Map container -->
+        <div id="nerMap" class="map-container"></div>
+
+        <!-- Side info panel — shown on marker click -->
+        <div class="map-info-panel" id="mapInfoPanel">
+          <div class="map-info-header" id="mapInfoHeader">
+            <span class="map-info-title" id="mapInfoStation">Click a station marker</span>
+            <span class="risk-badge badge--low" id="mapInfoBadge"></span>
+          </div>
+          <div class="map-info-body" id="mapInfoBody">
+            <p style="font-size:12px;color:var(--text-muted);padding:12px;">
+              Click any coloured marker on the map to see full risk details here.
+            </p>
+          </div>
+          <div class="map-info-footer" id="mapInfoFooter" style="display:none">
+            <button class="map-info-btn" id="mapInfoViewBtn" onclick="viewStationFromMap()">
+              View Full Details →
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ STEP 4: IMPACT ══ -->
+
+  <section class="impact-section" id="sec-impact">
+    <div class="section-heading">
+      <h2>🏘 What's at risk near <span id="impactStation">this area</span>?</h2>
+      <p class="section-sub">Estimated exposure based on risk score, elevation, and proximity</p>
+      <p class="section-disclaimer">This shows potentially exposed assets near the identified risk zone. Not a confirmed damage assessment.</p>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-card impact-card--villages">
+        <div class="impact-card-icon">🏘</div>
+        <p class="impact-card-label">Villages at Risk</p>
+        <p class="impact-card-value" id="impactVillages">–</p>
+        <p class="impact-card-sub" id="impactPop">Est. population: –</p>
+        <div class="impact-items" id="impactVillageList"></div>
+      </div>
+      <div class="impact-card impact-card--roads">
+        <div class="impact-card-icon">🛣</div>
+        <p class="impact-card-label">Roads / Highways</p>
+        <p class="impact-card-value" id="impactRoads">–</p>
+        <p class="impact-card-sub">Potential blockage risk</p>
+        <div class="impact-items" id="impactRoadList"></div>
+      </div>
+      <div class="impact-card impact-card--bridges">
+        <div class="impact-card-icon">🌉</div>
+        <p class="impact-card-label">Bridges</p>
+        <p class="impact-card-value" id="impactBridges">–</p>
+        <p class="impact-card-sub">Critical connectivity</p>
+        <div class="impact-items" id="impactBridgeList"></div>
+      </div>
+      <div class="impact-card impact-card--infra">
+        <div class="impact-card-icon">🏥</div>
+        <p class="impact-card-label">Critical Infrastructure</p>
+        <p class="impact-card-value" id="impactInfra">–</p>
+        <p class="impact-card-sub">Schools, hospitals</p>
+        <div class="impact-items" id="impactInfraList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ BOTTOM: SCENARIO + PRIORITY + REPORT ══ -->
+  <section class="bottom-row">
+
+    <!-- STEP 5: RAINFALL SCENARIO -->
+    <div class="bottom-card" id="sec-whatif">
+      <p class="bottom-card-title">🌧 Rainfall Scenario</p>
+      <p class="bottom-card-sub">Explore how landslide risk could change if rainfall increases beyond current levels.</p>
+
+      <!-- Scenario preset buttons -->
+      <div>
+        <span class="scenario-sim-label">Extra rainfall above current</span>
+        <div class="scenario-buttons">
+          <button class="scenario-btn active" id="scBtn0"   onclick="setScenario(0)"   aria-pressed="true">Current</button>
+          <button class="scenario-btn"         id="scBtn10"  onclick="setScenario(10)"  aria-pressed="false">+10%</button>
+          <button class="scenario-btn"         id="scBtn20"  onclick="setScenario(20)"  aria-pressed="false">+20%</button>
+          <button class="scenario-btn"         id="scBtn30"  onclick="setScenario(30)"  aria-pressed="false">+30%</button>
+          <button class="scenario-btn"         id="scBtn40"  onclick="setScenario(40)"  aria-pressed="false">+40%</button>
+        </div>
+      </div>
+
+      <!-- Hidden slider kept for JS compat -->
+      <div class="sim-control" style="display:none">
+        <label for="rainfallSlider" class="sim-label">Extra rainfall scenario</label>
+        <div class="slider-wrap">
+          <input type="range" min="0" max="50" step="10" value="0"
+            id="rainfallSlider" class="slider" oninput="updateSim(this.value)" />
+          <span class="slider-val" id="sliderVal">+0%</span>
+        </div>
+      </div>
+
+      <div class="sim-result">
+        <div class="sim-row">
+          <span>Current risk score</span>
+          <strong id="simCurrentScore">–</strong>
+        </div>
+        <div class="sim-row">
+          <span>Simulated risk becomes</span>
+          <strong class="sim-score" id="simScore">–</strong>
+        </div>
+        <div class="sim-row">
+          <span>Additional areas affected</span>
+          <strong id="simAreas">0</strong>
+        </div>
+        <div class="sim-row">
+          <span>More villages at risk</span>
+          <strong id="simVillages">0</strong>
+        </div>
+        <div class="sim-row">
+          <span>Roads newly exposed</span>
+          <strong id="simRoads">0</strong>
+        </div>
+        <p class="sim-note">⚠ SIMULATION — NOT A FORECAST</p>
+      </div>
+    </div>
+
+    <!-- STEP 6: PRIORITY -->
+    <div class="bottom-card" id="sec-priority">
+      <p class="bottom-card-title">🚨 Action Priority</p>
+      <p class="bottom-card-sub">Based on risk score, trend, and potential exposure for authorities.</p>
+      <div class="priority-block" id="priorityBlock">
+        <div class="priority-badge" id="priorityBadge">P–</div>
+        <div class="priority-detail">
+          <p class="priority-label" id="priorityLabel">–</p>
+          <p class="priority-desc"  id="priorityDesc">–</p>
+        </div>
+      </div>
+      <div class="priority-checklist" id="priorityChecklist"></div>
+      <p class="priority-note">⚠ AI guidance only — follow official government advisories and local authority instructions.</p>
+    </div>
+
+    <!-- STEP 7+8: REPORT + VERIFICATION -->
+    <div class="bottom-card" id="sec-report">
+      <p class="bottom-card-title">📷 Report a Hazard</p>
+      <p class="bottom-card-sub">Observed something concerning? Report it — it helps protect your community.</p>
+
+      <form class="report-form" onsubmit="submitReport(event)" novalidate>
+        <div class="form-group">
+          <label for="reportType">What did you observe?</label>
+          <select id="reportType" class="form-select" required>
+            <option value="">Choose what you saw…</option>
+            <option value="crack">🔴 Crack in the ground</option>
+            <option value="slope">🟠 Slope is moving</option>
+            <option value="rock">🟡 Rocks falling</option>
+            <option value="road">🔵 Road blocked</option>
+            <option value="seepage">💧 Water seeping from hill</option>
+            <option value="landslide">🚨 Landslide happened</option>
+            <option value="other">📌 Something else</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reportDesc">Describe what you saw</label>
+          <textarea id="reportDesc" class="form-input" rows="2" placeholder="Tell us what you saw — any details help…"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reportLat">Latitude</label>
+            <input type="number" id="reportLat" class="form-input" placeholder="e.g. 25.59" step="any" />
+          </div>
+          <div class="form-group">
+            <label for="reportLon">Longitude</label>
+            <input type="number" id="reportLon" class="form-input" placeholder="e.g. 91.88" step="any" />
+          </div>
+        </div>
+        <div class="form-btns">
+          <button type="button" class="btn-gps" onclick="getGPS()">📡 My Location</button>
+          <button type="submit" class="btn-submit">Submit Report</button>
+        </div>
+      </form>
+
+      <!-- Shown after submit -->
+      <div id="reportSuccess" style="display:none">
+        <div class="report-success">
+          ✅ Report submitted successfully.
+        </div>
+        <div class="verification-panel" id="verificationPanel">
+          <div class="verify-header">
+            <span class="verify-spinner">🔄</span>
+            <span class="verify-title">Verification in Progress…</span>
+          </div>
+          <div class="verify-steps">
+            <div class="verify-step verify-step--done" id="vs1">✅ Report received</div>
+            <div class="verify-step" id="vs2">⏳ Cross-checking rainfall data…</div>
+            <div class="verify-step" id="vs3">⏳ Checking against risk model…</div>
+            <div class="verify-step" id="vs4">⏳ Issuing verification…</div>
+          </div>
+          <div class="verify-result" id="verifyResult" style="display:none"></div>
+          <p style="font-size:11px; color:var(--text-faint); font-style:italic; line-height:1.5;">
+            🟡 Status: <strong>Pending Verification</strong> — Your report has been logged and will be reviewed.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ══ STEP 9: WARNINGS ══ -->
+  <section class="warning-section" id="sec-warning">
+    <div class="section-heading">
+      <h2>🚨 Active Warnings</h2>
+      <p class="section-sub">Generated from risk scores and field reports. Not official government alerts.</p>
+    </div>
+    <div class="warning-grid" id="warningGrid">
+      <div class="warning-loading">Generating warnings from real data…</div>
+    </div>
+  </section>
+
+</main>
+</div>
+<!-- end #view-citizen -->
+
+
+<!-- ══════════════════════════════════════════════════
+     VIEW: AUTHORITY DASHBOARD
+══════════════════════════════════════════════════ -->
+<div id="view-authority" class="view">
+
+  <div class="authority-main">
+
+    <div class="authority-header">
+      <div class="authority-header-left">
+        <h1>🛡️ Raksha360 — NER Risk Command Centre</h1>
+        <p>Disaster Management Authority · North East India · SIH 2026</p>
+      </div>
+      <div class="authority-header-right">
+        <div class="authority-live-badge">
+          <span style="width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block;animation:livePulse 2s ease-in-out infinite"></span>
+          Live Data
+        </div>
+        <button class="btn-authority-toggle active" onclick="toggleAuthorityView()">
+          ← Citizen View
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat Cards Row -->
+    <section class="cards-row">
+      <div class="card card--critical">
+        <p class="card-label">🔴 Critical Zones</p>
+        <p class="card-value" id="cardCritical">–</p>
+        <p class="card-sub">Immediate action required</p>
+      </div>
+      <div class="card card--high">
+        <p class="card-label">🟠 High Risk</p>
+        <p class="card-value" id="cardHigh">–</p>
+        <p class="card-sub">Watch closely</p>
+      </div>
+      <div class="card card--moderate">
+        <p class="card-label">🟡 Moderate Risk</p>
+        <p class="card-value" id="cardModerate">–</p>
+        <p class="card-sub">Monitor regularly</p>
+      </div>
+      <div class="card card--low">
+        <p class="card-label">🟢 Low Risk</p>
+        <p class="card-value" id="cardLow">–</p>
+        <p class="card-sub">Normal conditions</p>
+      </div>
+      <div class="card card--rain">
+        <p class="card-label">🌧 Avg Rain Today</p>
+        <p class="card-value" id="cardRain">–<span class="card-unit">mm</span></p>
+        <p class="card-sub">Across NE India</p>
+      </div>
+    </section>
+
+    <!-- Authority Grid: Table + Priority -->
+    <div class="authority-grid">
+
+      <!-- Full station table -->
+      <div class="station-panel">
+        <div class="panel-header">
+          <span class="panel-header-title">📡 All NER Monitoring Stations</span>
+          <span class="panel-header-sub">Sorted by risk score — click to inspect</span>
+        </div>
+        <div class="table-wrap">
+          <table class="station-table" role="grid">
+            <thead>
+              <tr>
+                <th scope="col">Station / State</th>
+                <th scope="col">Risk Level</th>
+                <th scope="col">Score</th>
+                <th scope="col">Today Rain</th>
+                <th scope="col">7-Day</th>
+                <th scope="col">Elevation</th>
+              </tr>
+            </thead>
+            <tbody id="authorityTableBody">
+              <tr><td colspan="6" class="table-loading">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Priority Panel -->
+      <div class="priority-panel">
+        <div class="priority-panel-header">
+          <span class="priority-panel-title">🎯 Priority Zones</span>
+          <span class="priority-panel-sub">Action ranking</span>
+        </div>
+        <div class="priority-list" id="authorityPriorityList">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Warning grid reuse -->
+    <section class="warning-section">
+      <div class="section-heading">
+        <h2>⚠️ Active System Warnings</h2>
+        <p class="section-sub">System-generated warnings based on risk scores and field reports</p>
+      </div>
+      <div class="warning-grid" id="authorityWarningGrid">
+        <div class="warning-loading">Generating warnings…</div>
+      </div>
+    </section>
+
+    <!-- ══ FIELD REPORTS PANEL ══ -->
+    <section class="field-reports-section" id="sec-authority-reports">
+      <div class="section-heading">
+        <h2>📷 Field Hazard Reports</h2>
+        <p class="section-sub">Citizen-submitted field observations — review and verify each report</p>
+      </div>
+
+      <!-- Status filter tabs -->
+      <div class="report-tabs">
+        <button class="report-tab active" id="rtabAll"      onclick="filterReports('all')">All <span class="report-tab-count" id="rtcAll">0</span></button>
+        <button class="report-tab"        id="rtabPending"  onclick="filterReports('pending')">🟡 Pending <span class="report-tab-count" id="rtcPending">0</span></button>
+        <button class="report-tab"        id="rtabVerified" onclick="filterReports('verified')">✅ Verified <span class="report-tab-count" id="rtcVerified">0</span></button>
+        <button class="report-tab"        id="rtabRejected" onclick="filterReports('rejected')">❌ Rejected <span class="report-tab-count" id="rtcRejected">0</span></button>
+      </div>
+
+      <!-- Reports grid -->
+      <div class="report-cards-grid" id="reportCardsGrid">
+        <!-- Populated by JS -->
+        <div class="report-empty" id="reportEmpty" style="display:none">
+          No reports match this filter.
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+</div>
+<!-- end #view-authority -->
+
+
+<!-- ══════════════════════════════════════════════════
+     MOBILE BOTTOM NAVIGATION
+══════════════════════════════════════════════════ -->
+<nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
+  <div class="mobile-nav-inner">
+    <button class="mobile-nav-btn active" id="mnavHome" onclick="showLandingMobile()">
+      <span class="mobile-nav-icon">🏠</span>
+      Home
+    </button>
+    <button class="mobile-nav-btn" id="mnavMap" onclick="showMapMobile()">
+      <span class="mobile-nav-icon">🗺</span>
+      Map
+    </button>
+    <button class="mobile-nav-btn" id="mnavAlerts" onclick="showCitizenAlerts()">
+      <span class="mobile-nav-icon">🚨</span>
+      Alerts
+    </button>
+    <button class="mobile-nav-btn" id="mnavReport" onclick="showCitizenReport()">
+      <span class="mobile-nav-icon">📷</span>
+      Report
+    </button>
+  </div>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════ -->
+<footer class="footer">
+  <p><span class="footer-brand">Raksha360</span> &nbsp;·&nbsp; Geo-Guardians &nbsp;·&nbsp; Smart India Hackathon 2026 — Problem ID: SIH 26001</p>
+  <p class="footer-note">
+    Risk scores are model estimates (Gradient Boosting AI). Not certified forecasts —
+    always follow official government advisories and local authority instructions.
+    Real rainfall data: Open-Meteo Archive API (2025–2026).
+  </p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+state,district,station,latitude,longitude,elevation_m,slope_deg_approx,source
+Assam,Kamrup,Guwahati,26.1,91.77,161.0,5.0,Open-Meteo Elevation API
+Assam,Cachar,Silchar,24.81,92.79,22.0,5.0,Open-Meteo Elevation API
+Assam,Dibrugarh,Dibrugarh,27.48,94.91,107.0,5.0,Open-Meteo Elevation API
+Arunachal Pradesh,Papum Pare,Itanagar,27.08,93.61,220.0,5.0,Open-Meteo Elevation API
+Arunachal Pradesh,East Siang,Pasighat,28.06,95.33,163.0,5.0,Open-Meteo Elevation API
+Manipur,Imphal West,Imphal,24.82,93.94,782.0,15.6,Open-Meteo Elevation API
+Meghalaya,East Khasi Hills,Shillong,25.57,91.88,1513.0,30.3,Open-Meteo Elevation API
+Meghalaya,East Khasi Hills,Cherrapunji,25.27,91.73,,,Open-Meteo Elevation API
+Mizoram,Aizawl,Aizawl,23.73,92.72,973.0,19.5,Open-Meteo Elevation API
+Nagaland,Kohima,Kohima,25.67,94.12,1458.0,29.2,Open-Meteo Elevation API
+Sikkim,East Sikkim,Gangtok,27.33,88.62,1588.0,31.8,Open-Meteo Elevation API
+Tripura,West Tripura,Agartala,23.83,91.28,12.0,5.0,Open-Meteo Elevation API
