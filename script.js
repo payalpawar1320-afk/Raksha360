@@ -432,7 +432,19 @@ function initAuthUI() {
   // Update Early Warning Status Bar to reflect current station's actual risk level
   var currentStName = (_currentUser && _currentUser.monitoredStation) ? _currentUser.monitoredStation : (_activeStation ? _activeStation.station : 'Kohima');
   var matchedSt = (typeof NER_DATA !== 'undefined' && NER_DATA.stations) ? NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === currentStName.toLowerCase(); }) : null;
-  updateEarlyWarningStatusBar(matchedSt || _activeStation);
+  var targetStation = matchedSt || _activeStation;
+  updateEarlyWarningStatusBar(targetStation);
+
+  // Automatically evaluate alert for monitored high/critical station on startup
+  if (targetStation && (targetStation.risk_level === 'HIGH' || targetStation.risk_level === 'CRITICAL' || targetStation.risk_score >= 55)) {
+    if (!window._evaluatedStations) window._evaluatedStations = {};
+    if (!window._evaluatedStations[targetStation.station]) {
+      window._evaluatedStations[targetStation.station] = true;
+      setTimeout(function() {
+        evaluateStationRiskAlert(targetStation, 'automated');
+      }, 600);
+    }
+  }
 }
 
 function updateEarlyWarningStatusBar(station) {
@@ -440,6 +452,7 @@ function updateEarlyWarningStatusBar(station) {
   var dot = document.getElementById('alertPulseDot');
   var headline = document.getElementById('alertStatusHeadline');
   var sub = document.getElementById('alertStatusSub');
+  var dispatchBtn = document.getElementById('btnDispatchTest');
   if (!badge || !station) return;
 
   var score = station.risk_score || 0;
@@ -462,6 +475,11 @@ function updateEarlyWarningStatusBar(station) {
     if (sub) {
       sub.textContent = station.station + ' (' + station.state + ') risk score is ' + score + '/100. Emergency automated alerts active.';
     }
+    if (dispatchBtn) {
+      dispatchBtn.style.display = 'inline-flex';
+      dispatchBtn.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+      dispatchBtn.textContent = '⚡ Dispatch Alert to My Email';
+    }
   } else if (level === 'HIGH' || score >= 55) {
     badge.className = 'alert-badge-status alert-badge-status--sent';
     badge.style.background = 'rgba(234, 88, 12, 0.25)';
@@ -478,6 +496,11 @@ function updateEarlyWarningStatusBar(station) {
     }
     if (sub) {
       sub.textContent = station.station + ' (' + station.state + ') is in High Risk zone. Automated alerts active.';
+    }
+    if (dispatchBtn) {
+      dispatchBtn.style.display = 'inline-flex';
+      dispatchBtn.style.background = 'linear-gradient(135deg, #ea580c, #c2410c)';
+      dispatchBtn.textContent = '⚡ Dispatch Alert to My Email';
     }
   } else {
     // Normal / Safe
@@ -496,6 +519,9 @@ function updateEarlyWarningStatusBar(station) {
     }
     if (sub) {
       sub.textContent = 'Condition: High/Critical risk triggers real automated email.';
+    }
+    if (dispatchBtn) {
+      dispatchBtn.style.display = 'none';
     }
   }
 }
@@ -760,6 +786,8 @@ async function evaluateStationRiskAlert(station, triggerSource) {
   if (!station) return;
   triggerSource = triggerSource || 'automated';
 
+  var activeEmail = (_currentUser && _currentUser.email) ? _currentUser.email : 'payalpawar1320@gmail.com';
+
   var payload = {
     stationName: station.station,
     state: station.state,
@@ -768,8 +796,22 @@ async function evaluateStationRiskAlert(station, triggerSource) {
     rainfallToday: station.rainfall_today,
     rainfall7d: station.rainfall_7d,
     whyFactors: station.slope_geology ? '• ' + station.slope_geology : '• Steep slope saturation from cumulative rainfall.',
-    triggerSource: triggerSource
+    triggerSource: triggerSource,
+    currentUserEmail: activeEmail
   };
+
+  var headline = document.getElementById('alertStatusHeadline');
+  var sub = document.getElementById('alertStatusSub');
+  var badge = document.getElementById('alertBadgeStatus');
+  var dispatchBtn = document.getElementById('btnDispatchTest');
+
+  if (dispatchBtn) {
+    dispatchBtn.disabled = true;
+    dispatchBtn.textContent = '⏳ Dispatching Email…';
+  }
+  if (sub) {
+    sub.innerHTML = '⏳ Dispatching automated emergency alert email for ' + station.station + ' to <strong>' + activeEmail + '</strong>…';
+  }
 
   try {
     var res = await fetch('/api/alerts/evaluate-risk', {
@@ -781,27 +823,65 @@ async function evaluateStationRiskAlert(station, triggerSource) {
     var result = await safeJson(res);
     if (result.alertTriggered && result.emailSent) {
       // Update UI Status Badge
-      var badge = document.getElementById('alertBadgeStatus');
       if (badge) {
         badge.className = 'alert-badge-status alert-badge-status--sent';
+        badge.style.background = 'rgba(239, 68, 68, 0.25)';
+        badge.style.color = '#f87171';
+        badge.style.borderColor = 'rgba(239, 68, 68, 0.6)';
         badge.textContent = '🚨 Email Sent (' + result.recipientCount + ' Recipient' + (result.recipientCount > 1 ? 's' : '') + ')';
       }
 
-      var headline = document.getElementById('alertStatusHeadline');
       if (headline) {
         headline.textContent = '🚨 Emergency Early Warning Dispatched';
         headline.style.color = '#f87171';
       }
 
-      var sub = document.getElementById('alertStatusSub');
       if (sub) {
-        sub.textContent = 'Automated email sent for ' + station.station + ' (' + station.risk_level + ' - ' + station.risk_score + '/100).';
+        sub.innerHTML = '✅ Emergency alert email dispatched to <strong>' + activeEmail + '</strong> (Status: ' + (result.status || 'Email Sent') + '). Check your inbox / spam folder!';
+      }
+
+      if (dispatchBtn) {
+        dispatchBtn.textContent = '✅ Email Dispatched!';
+        setTimeout(function() {
+          if (dispatchBtn) {
+            dispatchBtn.disabled = false;
+            dispatchBtn.textContent = '⚡ Re-Dispatch Alert to My Email';
+          }
+        }, 3500);
       }
 
       fetchAndRenderAlertHistory();
+    } else if (result.alertTriggered && !result.emailSent) {
+      if (sub) {
+        sub.textContent = '⚠️ Alert evaluated for ' + station.station + ', but delivery notice: ' + (result.reason || 'Check service configuration');
+      }
+      if (dispatchBtn) {
+        dispatchBtn.disabled = false;
+        dispatchBtn.textContent = '⚡ Retry Dispatch';
+      }
+    } else if (result.reason) {
+      if (sub) sub.textContent = result.reason;
+      if (dispatchBtn) {
+        dispatchBtn.disabled = false;
+        dispatchBtn.textContent = '⚡ Dispatch Alert to My Email';
+      }
     }
   } catch (err) {
     console.warn('Risk evaluation error:', err.message);
+    if (sub) sub.textContent = 'Dispatch error: ' + err.message;
+    if (dispatchBtn) {
+      dispatchBtn.disabled = false;
+      dispatchBtn.textContent = '⚡ Retry Dispatch';
+    }
+  }
+}
+
+async function triggerManualStationAlertEvaluation() {
+  var currentStName = (_currentUser && _currentUser.monitoredStation) ? _currentUser.monitoredStation : (_activeStation ? _activeStation.station : 'Kohima');
+  var matchedSt = (typeof NER_DATA !== 'undefined' && NER_DATA.stations) ? NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === currentStName.toLowerCase(); }) : null;
+  var target = matchedSt || _activeStation;
+  if (target) {
+    await evaluateStationRiskAlert(target, 'user_manual_dispatch');
   }
 }
 
@@ -955,6 +1035,15 @@ function selectStation(s) {
   populatePriorityBlock(s);
   setScenario(0);
   updatePreviewCard(s);
+
+  // If newly selected station is in High or Critical risk state, evaluate alert automatically
+  if (s && (s.risk_level === 'HIGH' || s.risk_level === 'CRITICAL' || s.risk_score >= 55)) {
+    if (!window._evaluatedStations) window._evaluatedStations = {};
+    if (!window._evaluatedStations[s.station]) {
+      window._evaluatedStations[s.station] = true;
+      evaluateStationRiskAlert(s, 'automated');
+    }
+  }
 }
 
 function highlightTableRow(s) {

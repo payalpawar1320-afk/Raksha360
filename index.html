@@ -544,8 +544,11 @@
             <span class="status-text-headline" id="alertStatusHeadline">Risk Engine: Monitoring Active</span>
             <span class="status-text-sub" id="alertStatusSub">Condition: High/Critical risk triggers real automated email.</span>
           </div>
-          <div class="status-indicator-right" id="alertStatusRight">
+          <div class="status-indicator-right" id="alertStatusRight" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="alert-badge-status" id="alertBadgeStatus">🟢 All Normal</span>
+            <button class="btn-dispatch-test" id="btnDispatchTest" onclick="triggerManualStationAlertEvaluation()" style="display:none;padding:5px 12px;font-size:12px;font-weight:700;border-radius:6px;background:linear-gradient(135deg, #ea580c, #c2410c);color:#ffffff;border:1px solid rgba(255,255,255,0.2);cursor:pointer;box-shadow:0 2px 6px rgba(234,88,12,0.4);transition:all 0.2s ease;">
+              ⚡ Dispatch Alert to My Email
+            </button>
           </div>
         </div>
       </div>

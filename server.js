@@ -190,7 +190,8 @@ app.post('/api/alerts/evaluate-risk', async (req, res) => {
       rainfallToday = 0,
       rainfall7d = 0,
       whyFactors = '',
-      triggerSource = 'automated'
+      triggerSource = 'automated',
+      currentUserEmail = null
     } = req.body;
 
     if (!stationName) {
@@ -198,7 +199,7 @@ app.post('/api/alerts/evaluate-risk', async (req, res) => {
     }
 
     const numericScore = parseFloat(riskScore) || 0;
-    const isDangerous = numericScore >= 60 || riskLevel === 'HIGH' || riskLevel === 'CRITICAL';
+    const isDangerous = numericScore >= 55 || riskLevel === 'HIGH' || riskLevel === 'CRITICAL';
 
     // If risk condition is not HIGH or CRITICAL, no emergency email is warranted
     if (!isDangerous) {
@@ -213,7 +214,20 @@ app.post('/api/alerts/evaluate-risk', async (req, res) => {
 
     // Step 2: Query matching subscribers (Citizen monitoring this station + Authority)
     const subscribers = await DB.getSubscribersForStation(stationName);
-    const recipientEmails = subscribers.map(s => s.email);
+    let recipientEmails = subscribers.map(s => s.email);
+
+    // If active user email is sent from frontend, guarantee it's in the alert list
+    if (currentUserEmail && typeof currentUserEmail === 'string' && currentUserEmail.includes('@')) {
+      if (!recipientEmails.includes(currentUserEmail.toLowerCase())) {
+        recipientEmails.push(currentUserEmail.toLowerCase());
+      }
+    }
+
+    // Always ensure verified test recipient (payalpawar1320@gmail.com) receives the alert for SIH Demo
+    const verifiedDemoEmail = (process.env.ALERT_TEST_RECIPIENT || 'payalpawar1320@gmail.com').toLowerCase();
+    if (!recipientEmails.includes(verifiedDemoEmail)) {
+      recipientEmails.push(verifiedDemoEmail);
+    }
 
     if (recipientEmails.length === 0) {
       const log = await DB.recordAlert({

@@ -211,6 +211,12 @@ async function sendAutomatedRiskEmail({
       let lastResendId = null;
 
       for (const recipient of recipients) {
+        // Resend free tier restriction: onboarding@resend.dev only allows sending to payalpawar1320@gmail.com
+        if (fromEmail === 'onboarding@resend.dev' && recipient !== 'payalpawar1320@gmail.com' && !recipient.endsWith('@resend.dev')) {
+          console.log(`ℹ️ [Resend Free Tier] Skipping mock recipient ${recipient} (Free tier sends to verified owner payalpawar1320@gmail.com)`);
+          continue;
+        }
+
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {

@@ -23,7 +23,14 @@ class LocalStore {
         const raw = fs.readFileSync(LOCAL_DB_PATH, 'utf-8');
         this.data = JSON.parse(raw);
       } else {
-        this.save();
+        const seedPath = path.join(__dirname, 'data', 'local_storage.json');
+        if (fs.existsSync(seedPath)) {
+          const raw = fs.readFileSync(seedPath, 'utf-8');
+          this.data = JSON.parse(raw);
+          this.save();
+        } else {
+          this.save();
+        }
       }
     } catch (err) {
       console.warn('Could not read local_storage.json, using in-memory fallback:', err.message);
@@ -137,17 +144,18 @@ async function initDB() {
 }
 
 async function seedDefaultAccounts() {
-  const defaultAuthEmail = process.env.DEFAULT_AUTHORITY_EMAIL || 'authority@raksha360.gov.in';
+  const defaultAuthEmail = (process.env.DEFAULT_AUTHORITY_EMAIL || 'authority@raksha360.gov.in').toLowerCase();
   const defaultAuthPass = process.env.DEFAULT_AUTHORITY_PASS || 'Admin@123';
+  const defaultCitizenEmail = (process.env.ALERT_TEST_RECIPIENT || 'payalpawar1320@gmail.com').toLowerCase();
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(defaultAuthPass, salt);
 
   if (isMongoConnected && UserModel) {
-    const existing = await UserModel.findOne({ email: defaultAuthEmail.toLowerCase() });
-    if (!existing) {
+    const existingAuth = await UserModel.findOne({ email: defaultAuthEmail });
+    if (!existingAuth) {
       await UserModel.create({
         name: 'State Disaster Management Authority (NER)',
-        email: defaultAuthEmail.toLowerCase(),
+        email: defaultAuthEmail,
         passwordHash: hash,
         role: 'authority',
         monitoredStation: 'ALL',
@@ -155,13 +163,26 @@ async function seedDefaultAccounts() {
       });
       console.log('🌱 Seeded default Authority account in MongoDB:', defaultAuthEmail);
     }
+
+    const existingCitizen = await UserModel.findOne({ email: defaultCitizenEmail });
+    if (!existingCitizen) {
+      await UserModel.create({
+        name: 'Payal Pawar (Citizen)',
+        email: defaultCitizenEmail,
+        passwordHash: hash,
+        role: 'citizen',
+        monitoredStation: 'Kohima',
+        emailAlertsEnabled: true
+      });
+      console.log('🌱 Seeded default Citizen account in MongoDB:', defaultCitizenEmail);
+    }
   } else {
-    const existing = localStore.findUserByEmail(defaultAuthEmail);
-    if (!existing) {
+    const existingAuth = localStore.findUserByEmail(defaultAuthEmail);
+    if (!existingAuth) {
       localStore.createUser({
         id: 'auth_seed_' + Date.now(),
         name: 'State Disaster Management Authority (NER)',
-        email: defaultAuthEmail.toLowerCase(),
+        email: defaultAuthEmail,
         passwordHash: hash,
         role: 'authority',
         monitoredStation: 'ALL',
@@ -169,6 +190,21 @@ async function seedDefaultAccounts() {
         createdAt: new Date().toISOString()
       });
       console.log('🌱 Seeded default Authority account in Local Storage:', defaultAuthEmail);
+    }
+
+    const existingCitizen = localStore.findUserByEmail(defaultCitizenEmail);
+    if (!existingCitizen) {
+      localStore.createUser({
+        id: 'usr_seed_' + Date.now(),
+        name: 'Payal Pawar (Citizen)',
+        email: defaultCitizenEmail,
+        passwordHash: hash,
+        role: 'citizen',
+        monitoredStation: 'Kohima',
+        emailAlertsEnabled: true,
+        createdAt: new Date().toISOString()
+      });
+      console.log('🌱 Seeded default Citizen account in Local Storage:', defaultCitizenEmail);
     }
   }
 }
