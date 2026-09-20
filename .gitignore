@@ -7,6 +7,7 @@ desktop.ini
 .env
 .env*.local
 *.env
+data/local_storage.json
 
 # Python Cache & Virtual Environments
 __pycache__/

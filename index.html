@@ -58,6 +58,15 @@
     <span class="data-badge" id="dataBadge">Loading…</span>
     <span class="status-dot"></span>
     <span class="status-text" id="statusLiveText" data-i18n="live">Live</span>
+    <div class="citizen-account-wrap" id="citizenAccountWrap">
+      <button class="btn-citizen-login" id="btnCitizenLogin" onclick="openCitizenAuthModal()">
+        👤 Citizen Login
+      </button>
+      <div class="user-pill-dropdown" id="userPillDropdown" style="display:none;">
+        <span class="user-badge" id="userBadgeLabel">👤 Citizen</span>
+        <button class="btn-logout" onclick="logoutCurrentUser()" title="Log out">Logout</button>
+      </div>
+    </div>
     <button class="btn-authority-toggle" id="btnAuthorityToggle" onclick="toggleAuthorityView()" title="Switch to Authority Dashboard">
       🏛 <span data-i18n="authority_btn">Authority</span>
     </button>
@@ -104,6 +113,115 @@
         View Risk Assessment →
       </button>
 
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     CITIZEN AUTH MODAL (LOGIN / SIGN UP)
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="citizenAuthModal" role="dialog" aria-modal="true" aria-labelledby="citizenAuthTitle" style="display:none;">
+  <div class="modal-box auth-modal-box">
+    <div class="modal-header">
+      <div class="modal-header-text">
+        <h2 id="citizenAuthTitle">👤 Citizen Early Warning Portal</h2>
+        <p>Register your area to receive automated emergency email alerts</p>
+      </div>
+      <button class="modal-close" onclick="closeCitizenAuthModal()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabCitizenLogin" onclick="switchCitizenAuthTab('login')">Log In</button>
+      <button class="auth-tab" id="tabCitizenSignup" onclick="switchCitizenAuthTab('signup')">Create Account</button>
+    </div>
+
+    <div class="modal-body auth-modal-body">
+      <!-- Error / Success Alert inside Modal -->
+      <div id="citizenAuthAlert" class="auth-alert" style="display:none;"></div>
+
+      <form id="formCitizenAuth" onsubmit="handleCitizenAuthSubmit(event)">
+        <!-- Name field for Sign Up -->
+        <div class="auth-form-group" id="groupCitizenName" style="display:none;">
+          <label for="citizenNameInput">Full Name</label>
+          <input type="text" id="citizenNameInput" class="auth-input" placeholder="e.g. Tenzing Norbu" autocomplete="name">
+        </div>
+
+        <div class="auth-form-group">
+          <label for="citizenEmailInput">Email Address <span class="required-star">*</span></label>
+          <input type="email" id="citizenEmailInput" class="auth-input" placeholder="your.name@example.com" required autocomplete="email">
+        </div>
+
+        <div class="auth-form-group">
+          <label for="citizenPasswordInput">Password <span class="required-star">*</span></label>
+          <input type="password" id="citizenPasswordInput" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <!-- Station Selection for Sign Up -->
+        <div class="auth-form-group" id="groupCitizenStation" style="display:none;">
+          <label for="citizenStationSelect">Primary Area to Monitor</label>
+          <select id="citizenStationSelect" class="auth-input">
+            <!-- Populated from NER_DATA -->
+          </select>
+          <small class="auth-hint">You will automatically receive alerts when landslide risk here reaches HIGH or CRITICAL.</small>
+        </div>
+
+        <button type="submit" class="btn-auth-submit" id="btnCitizenSubmit">
+          Log In →
+        </button>
+      </form>
+
+      <div class="auth-switch-note">
+        <span id="citizenAuthSwitchPrompt">Don't have an account yet?</span>
+        <button type="button" class="btn-link-action" id="btnCitizenSwitch" onclick="toggleCitizenAuthMode()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     AUTHORITY GATE MODAL (DISASTER MANAGEMENT)
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="authorityAuthModal" role="dialog" aria-modal="true" aria-labelledby="authGateTitle" style="display:none;">
+  <div class="modal-box auth-modal-box">
+    <div class="modal-header">
+      <div class="modal-header-text">
+        <h2 id="authGateTitle">🏛️ State Authority Login Gate</h2>
+        <p>Restricted access for SDMA, DEOC, NDRF, and Field Commanders</p>
+      </div>
+      <button class="modal-close" onclick="closeAuthorityAuthModal()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body auth-modal-body">
+      <div class="authority-credentials-callout">
+        <div class="callout-header">
+          <span>🛡️ Official Command Demo Access</span>
+        </div>
+        <p>Use pre-seeded authority credentials to evaluate Command Center:</p>
+        <div class="cred-chip-row">
+          <span>Email: <code>authority@raksha360.gov.in</code></span>
+          <span>Password: <code>Admin@123</code></span>
+        </div>
+      </div>
+
+      <div id="authorityAuthAlert" class="auth-alert" style="display:none;"></div>
+
+      <form id="formAuthorityAuth" onsubmit="handleAuthorityAuthSubmit(event)">
+        <div class="auth-form-group">
+          <label for="authorityEmailInput">Official Email Address</label>
+          <input type="email" id="authorityEmailInput" class="auth-input" value="authority@raksha360.gov.in" required>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="authorityPasswordInput">Security Password</label>
+          <input type="password" id="authorityPasswordInput" class="auth-input" value="Admin@123" required>
+        </div>
+
+        <button type="submit" class="btn-auth-submit btn-authority-submit" id="btnAuthoritySubmit">
+          Authorize & Enter Command Center →
+        </button>
+      </form>
     </div>
   </div>
 </div>
@@ -372,6 +490,102 @@
       🔄 Change Location
     </button>
   </div>
+
+  <!-- ══ 🛡️ CITIZEN EARLY WARNING & AREA MONITORING PANEL ══ -->
+  <section class="citizen-alert-panel" id="sec-citizen-alert-panel">
+    <div class="alert-panel-card">
+      <div class="alert-panel-header">
+        <div class="alert-panel-title-wrap">
+          <span class="alert-panel-icon">🔔</span>
+          <div>
+            <h3 class="alert-panel-title">Automated Early Warning &amp; Area Monitoring</h3>
+            <p class="alert-panel-sub" id="alertModeSub">Mode: <strong>Guest (Public Access)</strong> · No login required to browse risk maps.</p>
+          </div>
+        </div>
+        <div class="alert-panel-actions">
+          <button class="btn-panel-action" id="btnGuestAuthAction" onclick="openCitizenAuthModal()">
+            👤 Citizen Sign Up / Log In
+          </button>
+        </div>
+      </div>
+
+      <!-- Logged-in Controls (Visible when logged in as citizen) -->
+      <div class="citizen-monitor-controls" id="citizenMonitorControls" style="display:none;">
+        <div class="monitor-control-row">
+          <div class="monitor-field">
+            <label for="monitoredStationSelect">📍 Monitored Risk Area:</label>
+            <select id="monitoredStationSelect" class="monitor-select" onchange="onMonitoredStationChange(this.value)">
+              <!-- Populated by JS stations -->
+            </select>
+          </div>
+
+          <div class="monitor-field">
+            <label>✉️ Automated Email Alerts:</label>
+            <div class="toggle-wrap">
+              <input type="checkbox" id="toggleEmailAlerts" class="toggle-checkbox" onchange="onToggleEmailAlertsChange(this.checked)" checked>
+              <label for="toggleEmailAlerts" class="toggle-label"></label>
+              <span class="toggle-status-text" id="toggleStatusText">ACTIVE (High/Critical)</span>
+            </div>
+          </div>
+
+          <div class="monitor-field">
+            <label>Future Channels:</label>
+            <div class="future-pills-wrap">
+              <span class="future-pill" title="Requires TRAI DLT Template Registration">📱 SMS: <em>FUTURE (Phase 2)</em></span>
+              <span class="future-pill" title="Automated IVR Voice Calls">📞 Voice Call: <em>FUTURE (Phase 2)</em></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Automated Alert Engine Status Indicator -->
+        <div class="alert-engine-status-bar" id="alertEngineStatusBar">
+          <div class="status-indicator-left">
+            <span class="status-pulse-dot" id="alertPulseDot"></span>
+            <span class="status-text-headline" id="alertStatusHeadline">Risk Engine: Monitoring Active</span>
+            <span class="status-text-sub" id="alertStatusSub">Condition: High/Critical risk triggers real automated email.</span>
+          </div>
+          <div class="status-indicator-right" id="alertStatusRight">
+            <span class="alert-badge-status" id="alertBadgeStatus">🟢 All Normal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guest Mode Hint (Visible when guest) -->
+      <div class="guest-mode-hint" id="guestModeHint">
+        <div class="guest-hint-body">
+          <p>
+            ℹ️ <strong>Guest Mode:</strong> You can view all live 2D/3D maps, AI risk scores, Explainable AI factors, and public alerts.
+            To register your primary location and receive <strong>automatic email notifications</strong> whenever landslide risk becomes <span class="badge-text-danger">HIGH or CRITICAL</span>, log in with your citizen account.
+          </p>
+        </div>
+      </div>
+
+      <!-- Dispatched Alerts History Log (Collapse) -->
+      <div class="recent-alerts-drawer" id="recentAlertsDrawer">
+        <div class="drawer-header" onclick="toggleAlertsDrawer()">
+          <span>📋 Recent Automated Alerts Log (<span id="recentAlertsCount">0</span> dispatched)</span>
+          <span class="drawer-toggle-icon" id="drawerToggleIcon">▼</span>
+        </div>
+        <div class="drawer-content" id="drawerContent" style="display:none;">
+          <table class="alert-history-table">
+            <thead>
+              <tr>
+                <th>Dispatched Time</th>
+                <th>Station</th>
+                <th>Threat Level</th>
+                <th>Risk Score</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="alertHistoryTbody">
+              <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px;">No automated alerts triggered yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
 
   <!-- ══ STEP 1 + 2: RISK SCORE + DETAIL ══ -->
   <section class="content-grid">
@@ -647,7 +861,10 @@
 
     <!-- STEP 5: RAINFALL SCENARIO -->
     <div class="bottom-card" id="sec-whatif">
-      <p class="bottom-card-title">🌧 Rainfall Scenario</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <p class="bottom-card-title" style="margin:0;">🌧 Rainfall Scenario</p>
+        <span class="demo-sim-badge">🧪 [DEMO / SIMULATION MODE]</span>
+      </div>
       <p class="bottom-card-sub">Explore how landslide risk could change if rainfall increases beyond current levels.</p>
 
       <!-- Scenario preset buttons -->
@@ -817,6 +1034,22 @@
       </div>
     </div>
 
+    <!-- Authority Early Warning Control & Automated Dispatch Status -->
+    <div class="authority-alert-bar">
+      <div class="auth-bar-left">
+        <span class="auth-role-pill">🏛️ Authenticated Commander: SDMA NER</span>
+        <span class="auth-bar-sub">Active Automated Alert Engine: Listening for telemetry crossing High/Critical (Score ≥ 60)</span>
+      </div>
+      <div class="auth-bar-right">
+        <button class="btn-eval-risk" id="btnEvalRisk" onclick="triggerAuthorityRiskEvaluation()">
+          ⚡ Run Automated Risk Evaluation &amp; Dispatch
+        </button>
+        <button class="btn-logout-auth" onclick="logoutCurrentUser()">
+          Logout
+        </button>
+      </div>
+    </div>
+
     <!-- Stat Cards Row -->
     <section class="cards-row">
       <div class="card card--critical">
@@ -921,6 +1154,35 @@
         </div>
       </div>
 
+    </section>
+
+    <!-- ══ DISPATCHED ALERTS LOG AUDIT PANEL ══ -->
+    <section class="authority-alerts-log-section" id="sec-authority-alert-logs">
+      <div class="section-heading">
+        <h2>✉️ Dispatched Emergency Email Alerts (Audit Trail)</h2>
+        <p class="section-sub">Live log of automated email alerts dispatched by the AI risk engine to registered citizens and commanders</p>
+      </div>
+
+      <div class="auth-alert-log-card">
+        <div class="table-wrap">
+          <table class="station-table" id="authorityAlertLogTable">
+            <thead>
+              <tr>
+                <th scope="col">Dispatched Time</th>
+                <th scope="col">Monitoring Station</th>
+                <th scope="col">State</th>
+                <th scope="col">Threat Level</th>
+                <th scope="col">Risk Score</th>
+                <th scope="col">Recipients</th>
+                <th scope="col">Delivery Status</th>
+              </tr>
+            </thead>
+            <tbody id="authAlertLogTbody">
+              <tr><td colspan="7" class="table-loading">Loading dispatched alert logs…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
   </div>

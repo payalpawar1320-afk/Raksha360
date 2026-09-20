@@ -14,6 +14,22 @@ let _simBase = 40;
 // ── View state ─────────────────────────────────────────────────
 let _currentView = 'landing'; // 'landing' | 'citizen' | 'authority'
 
+// ── 3-Tier Access & Auth State (Guest / Citizen / Authority) ──
+let _currentUser = null;
+let _authToken = null;
+try {
+  const savedUser = localStorage.getItem('raksha_user');
+  const savedToken = localStorage.getItem('raksha_token');
+  if (savedUser && savedToken) {
+    _currentUser = JSON.parse(savedUser);
+    _authToken = savedToken;
+  }
+} catch (e) {
+  _currentUser = null;
+  _authToken = null;
+}
+let _citizenAuthTab = 'login'; // 'login' | 'signup'
+
 // ── Language State & Helpers ────────────────────────────────────
 let _currentLang = 'en';
 try {
@@ -149,6 +165,10 @@ function initDashboard() {
   // Set initial sim display
   setText('simCurrentScore', defaultStation.risk_score);
   setText('simScore', defaultStation.risk_score);
+
+  // Initialize 3-Tier Auth & Automated Alerts Engine
+  initAuthUI();
+  fetchAndRenderAlertHistory();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -248,9 +268,16 @@ function toggleAuthorityView() {
     var btn = document.getElementById('btnAuthorityToggle');
     if (btn) btn.classList.remove('active');
   } else {
-    showView('authority');
-    var btn = document.getElementById('btnAuthorityToggle');
-    if (btn) btn.classList.add('active');
+    // 3-Tier Gate: Authority role required
+    if (_currentUser && _currentUser.role === 'authority') {
+      showView('authority');
+      var btn = document.getElementById('btnAuthorityToggle');
+      if (btn) btn.classList.add('active');
+      fetchAndRenderAlertHistory();
+    } else {
+      // Show official Authority Login modal
+      openAuthorityAuthModal();
+    }
   }
 }
 
@@ -262,7 +289,7 @@ function showCitizenAlerts()  { navGoTo(null, 'sec-warning'); }
 function showCitizenReport()  { navGoTo(null, 'sec-report'); }
 
 // ═══════════════════════════════════════════════════════════════
-// LOCATION MODAL
+// LOCATION MODAL & SELECTS
 // ═══════════════════════════════════════════════════════════════
 function openLocationModal() {
   var modal = document.getElementById('locationModal');
@@ -302,6 +329,26 @@ function populateLocationSelects() {
   }
 
   populateDistrictSelect();
+
+  // Populate Citizen Station dropdowns
+  ['citizenStationSelect', 'monitoredStationSelect'].forEach(function(selId) {
+    var sel = document.getElementById(selId);
+    if (sel) {
+      var curr = sel.value;
+      sel.innerHTML = '';
+      NER_DATA.stations.forEach(function(st) {
+        var opt = document.createElement('option');
+        opt.value = st.station;
+        opt.textContent = st.station + ', ' + st.state + ' (Risk: ' + st.risk_score + '/100)';
+        sel.appendChild(opt);
+      });
+      if (_currentUser && _currentUser.monitoredStation) {
+        sel.value = _currentUser.monitoredStation;
+      } else if (curr) {
+        sel.value = curr;
+      }
+    }
+  });
 }
 
 function populateDistrictSelect() {
@@ -320,6 +367,449 @@ function populateDistrictSelect() {
       stationEl.appendChild(opt);
     }
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 3-TIER ACCESS (GUEST / CITIZEN / AUTHORITY) & ALERT ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+function initAuthUI() {
+  var loginBtn = document.getElementById('btnCitizenLogin');
+  var userPill = document.getElementById('userPillDropdown');
+  var userBadge = document.getElementById('userBadgeLabel');
+  var guestAuthAction = document.getElementById('btnGuestAuthAction');
+  var citizenControls = document.getElementById('citizenMonitorControls');
+  var guestHint = document.getElementById('guestModeHint');
+  var alertModeSub = document.getElementById('alertModeSub');
+  var stationSelect = document.getElementById('monitoredStationSelect');
+  var emailToggle = document.getElementById('toggleEmailAlerts');
+  var toggleStatusText = document.getElementById('toggleStatusText');
+
+  if (_currentUser) {
+    // Logged in (Citizen or Authority)
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (userPill) userPill.style.display = 'flex';
+    if (userBadge) {
+      var icon = _currentUser.role === 'authority' ? '🏛️ ' : '👤 ';
+      userBadge.textContent = icon + (_currentUser.name ? _currentUser.name.split(' ')[0] : 'User');
+      userBadge.title = _currentUser.email + ' (' + _currentUser.role + ')';
+    }
+
+    if (alertModeSub) {
+      var roleName = _currentUser.role === 'authority' ? 'Official Authority Commander' : 'Registered Citizen';
+      alertModeSub.innerHTML = 'Mode: <strong style="color:#60a5fa">' + roleName + '</strong> (' + _currentUser.email + ')';
+    }
+
+    if (guestAuthAction) guestAuthAction.style.display = 'none';
+    if (citizenControls) citizenControls.style.display = 'block';
+    if (guestHint) guestHint.style.display = 'none';
+
+    if (stationSelect && _currentUser.monitoredStation) {
+      stationSelect.value = _currentUser.monitoredStation;
+    }
+
+    if (emailToggle) {
+      emailToggle.checked = _currentUser.emailAlertsEnabled !== false;
+      if (toggleStatusText) {
+        toggleStatusText.textContent = emailToggle.checked ? 'ACTIVE (High/Critical)' : 'DISABLED';
+        toggleStatusText.style.color = emailToggle.checked ? '#34d399' : '#94a3b8';
+      }
+    }
+  } else {
+    // Guest Mode
+    if (loginBtn) loginBtn.style.display = 'flex';
+    if (userPill) userPill.style.display = 'none';
+
+    if (alertModeSub) {
+      alertModeSub.innerHTML = 'Mode: <strong>Guest (Public Access)</strong> · No login required to browse risk maps.';
+    }
+
+    if (guestAuthAction) guestAuthAction.style.display = 'inline-block';
+    if (citizenControls) citizenControls.style.display = 'none';
+    if (guestHint) guestHint.style.display = 'block';
+  }
+}
+
+// ── Citizen Auth Modal Handlers ────────────────────────────────
+function openCitizenAuthModal(tab) {
+  var modal = document.getElementById('citizenAuthModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    switchCitizenAuthTab(tab || 'login');
+  }
+}
+
+function closeCitizenAuthModal() {
+  var modal = document.getElementById('citizenAuthModal');
+  if (modal) modal.style.display = 'none';
+  var alertEl = document.getElementById('citizenAuthAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+function switchCitizenAuthTab(tab) {
+  _citizenAuthTab = tab;
+  var tabLogin = document.getElementById('tabCitizenLogin');
+  var tabSignup = document.getElementById('tabCitizenSignup');
+  var groupName = document.getElementById('groupCitizenName');
+  var groupStation = document.getElementById('groupCitizenStation');
+  var submitBtn = document.getElementById('btnCitizenSubmit');
+  var switchPrompt = document.getElementById('citizenAuthSwitchPrompt');
+  var switchBtn = document.getElementById('btnCitizenSwitch');
+
+  if (tab === 'signup') {
+    if (tabLogin) tabLogin.classList.remove('active');
+    if (tabSignup) tabSignup.classList.add('active');
+    if (groupName) groupName.style.display = 'block';
+    if (groupStation) groupStation.style.display = 'block';
+    if (submitBtn) submitBtn.textContent = 'Create Citizen Account →';
+    if (switchPrompt) switchPrompt.textContent = 'Already have an account?';
+    if (switchBtn) switchBtn.textContent = 'Log In';
+  } else {
+    if (tabLogin) tabLogin.classList.add('active');
+    if (tabSignup) tabSignup.classList.remove('active');
+    if (groupName) groupName.style.display = 'none';
+    if (groupStation) groupStation.style.display = 'none';
+    if (submitBtn) submitBtn.textContent = 'Log In →';
+    if (switchPrompt) switchPrompt.textContent = "Don't have an account yet?";
+    if (switchBtn) switchBtn.textContent = 'Create Account';
+  }
+}
+
+function toggleCitizenAuthMode() {
+  switchCitizenAuthTab(_citizenAuthTab === 'login' ? 'signup' : 'login');
+}
+
+async function handleCitizenAuthSubmit(event) {
+  event.preventDefault();
+  var alertEl = document.getElementById('citizenAuthAlert');
+  var submitBtn = document.getElementById('btnCitizenSubmit');
+
+  var email = document.getElementById('citizenEmailInput').value.trim();
+  var password = document.getElementById('citizenPasswordInput').value;
+  var name = document.getElementById('citizenNameInput') ? document.getElementById('citizenNameInput').value.trim() : '';
+  var monitoredStation = document.getElementById('citizenStationSelect') ? document.getElementById('citizenStationSelect').value : 'Gangtok';
+
+  if (alertEl) alertEl.style.display = 'none';
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processing…'; }
+
+  var endpoint = _citizenAuthTab === 'signup' ? '/api/auth/register' : '/api/auth/login';
+  var payload = _citizenAuthTab === 'signup'
+    ? { name: name || email.split('@')[0], email: email, password: password, monitoredStation: monitoredStation }
+    : { email: email, password: password, role: 'citizen' };
+
+  try {
+    var res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    var data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Authentication failed.');
+    }
+
+    _currentUser = data.user;
+    _authToken = data.token;
+    localStorage.setItem('raksha_user', JSON.stringify(_currentUser));
+    localStorage.setItem('raksha_token', _authToken);
+
+    closeCitizenAuthModal();
+    initAuthUI();
+    fetchAndRenderAlertHistory();
+
+    // Check if the monitored area is currently high risk
+    if (_activeStation && _activeStation.station.toLowerCase() === _currentUser.monitoredStation.toLowerCase()) {
+      if (_activeStation.risk_score >= 60) {
+        evaluateStationRiskAlert(_activeStation, 'automated');
+      }
+    }
+  } catch (err) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = '⚠️ ' + err.message;
+      alertEl.style.display = 'block';
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = _citizenAuthTab === 'signup' ? 'Create Citizen Account →' : 'Log In →';
+    }
+  }
+}
+
+// ── Authority Gate Modal Handlers ──────────────────────────────
+function openAuthorityAuthModal() {
+  var modal = document.getElementById('authorityAuthModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeAuthorityAuthModal() {
+  var modal = document.getElementById('authorityAuthModal');
+  if (modal) modal.style.display = 'none';
+  var alertEl = document.getElementById('authorityAuthAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+async function handleAuthorityAuthSubmit(event) {
+  event.preventDefault();
+  var alertEl = document.getElementById('authorityAuthAlert');
+  var submitBtn = document.getElementById('btnAuthoritySubmit');
+
+  var email = document.getElementById('authorityEmailInput').value.trim();
+  var password = document.getElementById('authorityPasswordInput').value;
+
+  if (alertEl) alertEl.style.display = 'none';
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Verifying Authority Credentials…'; }
+
+  try {
+    var res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password, role: 'authority' })
+    });
+
+    var data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Authority authorization failed.');
+    }
+
+    _currentUser = data.user;
+    _authToken = data.token;
+    localStorage.setItem('raksha_user', JSON.stringify(_currentUser));
+    localStorage.setItem('raksha_token', _authToken);
+
+    closeAuthorityAuthModal();
+    initAuthUI();
+    showView('authority');
+    var btn = document.getElementById('btnAuthorityToggle');
+    if (btn) btn.classList.add('active');
+    fetchAndRenderAlertHistory();
+  } catch (err) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = '⛔ ' + err.message;
+      alertEl.style.display = 'block';
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Authorize & Enter Command Center →';
+    }
+  }
+}
+
+function logoutCurrentUser() {
+  _currentUser = null;
+  _authToken = null;
+  localStorage.removeItem('raksha_user');
+  localStorage.removeItem('raksha_token');
+
+  initAuthUI();
+  if (_currentView === 'authority') {
+    showView('citizen');
+    var btn = document.getElementById('btnAuthorityToggle');
+    if (btn) btn.classList.remove('active');
+  }
+}
+
+// ── Preferences Management ─────────────────────────────────────
+async function onMonitoredStationChange(newStation) {
+  if (!_currentUser || !_authToken) return;
+  _currentUser.monitoredStation = newStation;
+  localStorage.setItem('raksha_user', JSON.stringify(_currentUser));
+
+  try {
+    await fetch('/api/citizen/preferences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + _authToken
+      },
+      body: JSON.stringify({ monitoredStation: newStation })
+    });
+  } catch (e) {
+    console.warn('Could not save station preference:', e.message);
+  }
+
+  // If newly selected station is currently in High/Critical state, evaluate alert
+  var stationObj = NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === newStation.toLowerCase(); });
+  if (stationObj && stationObj.risk_score >= 60) {
+    evaluateStationRiskAlert(stationObj, 'automated');
+  }
+}
+
+async function onToggleEmailAlertsChange(checked) {
+  if (!_currentUser || !_authToken) return;
+  _currentUser.emailAlertsEnabled = checked;
+  localStorage.setItem('raksha_user', JSON.stringify(_currentUser));
+
+  var toggleStatusText = document.getElementById('toggleStatusText');
+  if (toggleStatusText) {
+    toggleStatusText.textContent = checked ? 'ACTIVE (High/Critical)' : 'DISABLED';
+    toggleStatusText.style.color = checked ? '#34d399' : '#94a3b8';
+  }
+
+  try {
+    await fetch('/api/citizen/preferences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + _authToken
+      },
+      body: JSON.stringify({ emailAlertsEnabled: checked })
+    });
+  } catch (e) {
+    console.warn('Could not save email toggle preference:', e.message);
+  }
+}
+
+function toggleAlertsDrawer() {
+  var content = document.getElementById('drawerContent');
+  var icon = document.getElementById('drawerToggleIcon');
+  if (!content) return;
+  var isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (icon) icon.textContent = isOpen ? '▼' : '▲';
+}
+
+// ── Automated Alert Evaluation & Dispatch Engine ───────────────
+async function evaluateStationRiskAlert(station, triggerSource) {
+  if (!station) return;
+  triggerSource = triggerSource || 'automated';
+
+  var payload = {
+    stationName: station.station,
+    state: station.state,
+    riskScore: station.risk_score,
+    riskLevel: station.risk_level,
+    rainfallToday: station.rainfall_today,
+    rainfall7d: station.rainfall_7d,
+    whyFactors: station.slope_geology ? '• ' + station.slope_geology : '• Steep slope saturation from cumulative rainfall.',
+    triggerSource: triggerSource
+  };
+
+  try {
+    var res = await fetch('/api/alerts/evaluate-risk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    var result = await res.json();
+    if (result.alertTriggered && result.emailSent) {
+      // Update UI Status Badge
+      var badge = document.getElementById('alertBadgeStatus');
+      if (badge) {
+        badge.className = 'alert-badge-status alert-badge-status--sent';
+        badge.textContent = '🚨 Email Sent (' + result.recipientCount + ' Recipient' + (result.recipientCount > 1 ? 's' : '') + ')';
+      }
+
+      var headline = document.getElementById('alertStatusHeadline');
+      if (headline) {
+        headline.textContent = '🚨 Emergency Early Warning Dispatched';
+        headline.style.color = '#f87171';
+      }
+
+      var sub = document.getElementById('alertStatusSub');
+      if (sub) {
+        sub.textContent = 'Automated email sent for ' + station.station + ' (' + station.risk_level + ' - ' + station.risk_score + '/100).';
+      }
+
+      fetchAndRenderAlertHistory();
+    }
+  } catch (err) {
+    console.warn('Risk evaluation error:', err.message);
+  }
+}
+
+async function triggerAuthorityRiskEvaluation() {
+  var btn = document.getElementById('btnEvalRisk');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Evaluating Regional Telemetry…'; }
+
+  try {
+    // Find high or critical stations in NER
+    var highStations = NER_DATA.stations.filter(function(s) {
+      return s.risk_score >= 60 || s.risk_level === 'HIGH' || s.risk_level === 'CRITICAL';
+    });
+
+    if (highStations.length === 0) {
+      highStations = [NER_DATA.stations[0]];
+    }
+
+    for (var i = 0; i < Math.min(highStations.length, 2); i++) {
+      await evaluateStationRiskAlert(highStations[i], 'authority_eval');
+    }
+
+    alert('✅ Regional Risk Evaluation Complete. Automated alert pipeline checked all monitored sectors.');
+    fetchAndRenderAlertHistory();
+  } catch (e) {
+    alert('Evaluation failed: ' + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚡ Run Automated Risk Evaluation & Dispatch';
+    }
+  }
+}
+
+async function fetchAndRenderAlertHistory() {
+  try {
+    var res = await fetch('/api/alerts/history');
+    if (!res.ok) return;
+    var data = await res.json();
+    var history = data.history || [];
+
+    // 1. Render in Citizen View drawer
+    var countEl = document.getElementById('recentAlertsCount');
+    if (countEl) countEl.textContent = history.length;
+
+    var tbodyCitizen = document.getElementById('alertHistoryTbody');
+    if (tbodyCitizen) {
+      if (history.length === 0) {
+        tbodyCitizen.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px;">No automated alerts dispatched yet.</td></tr>';
+      } else {
+        tbodyCitizen.innerHTML = history.slice(0, 10).map(function(item) {
+          var dateStr = new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' IST';
+          var isCrit = item.riskLevel === 'CRITICAL' || item.riskScore >= 75;
+          var badgeClass = isCrit ? 'badge--critical' : 'badge--high';
+          return '<tr>' +
+            '<td>' + dateStr + '</td>' +
+            '<td><strong>' + item.stationName + '</strong> (' + (item.state || 'NER') + ')</td>' +
+            '<td><span class="risk-badge ' + badgeClass + '">' + item.riskLevel + '</span></td>' +
+            '<td><strong>' + item.riskScore + '/100</strong></td>' +
+            '<td><span style="color:#4ade80;font-weight:700;">✅ ' + item.status + '</span></td>' +
+          '</tr>';
+        }).join('');
+      }
+    }
+
+    // 2. Render in Authority Command Center table
+    var tbodyAuth = document.getElementById('authAlertLogTbody');
+    if (tbodyAuth) {
+      if (history.length === 0) {
+        tbodyAuth.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:16px;">No automated alerts dispatched yet. System running in normal monitoring state.</td></tr>';
+      } else {
+        tbodyAuth.innerHTML = history.map(function(item) {
+          var dateStr = new Date(item.sentAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' });
+          var isCrit = item.riskLevel === 'CRITICAL' || item.riskScore >= 75;
+          var badgeClass = isCrit ? 'badge--critical' : 'badge--high';
+          var recCount = item.recipients ? item.recipients.length : 0;
+          return '<tr>' +
+            '<td>' + dateStr + '</td>' +
+            '<td><strong>' + item.stationName + '</strong></td>' +
+            '<td>' + (item.state || 'NER') + '</td>' +
+            '<td><span class="risk-badge ' + badgeClass + '">' + item.riskLevel + '</span></td>' +
+            '<td><strong>' + item.riskScore + '/100</strong></td>' +
+            '<td>' + recCount + ' recipient' + (recCount === 1 ? '' : 's') + '</td>' +
+            '<td><span style="color:#4ade80;font-weight:700;">✅ ' + item.status + '</span></td>' +
+          '</tr>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch alert history:', e.message);
+  }
 }
 
 function useMyLocation() {
@@ -1092,6 +1582,18 @@ function updateSim(val) {
   var simScoreEl = document.getElementById('simScore');
   if (simScoreEl) {
     simScoreEl.style.color = newScore >= 75 ? '#b91c1c' : newScore >= 55 ? '#c2410c' : newScore >= 35 ? '#b45309' : '#166534';
+  }
+
+  // Trigger automated alert evaluation when simulated risk crosses alert threshold (Score >= 60)
+  if (pct > 0 && newScore >= 60 && _activeStation) {
+    if (window._simAlertTimeout) clearTimeout(window._simAlertTimeout);
+    window._simAlertTimeout = setTimeout(function () {
+      var simStation = Object.assign({}, _activeStation, {
+        risk_score: newScore,
+        risk_level: newScore >= 75 ? 'CRITICAL' : 'HIGH'
+      });
+      evaluateStationRiskAlert(simStation, 'simulation');
+    }, 600);
   }
 }
 

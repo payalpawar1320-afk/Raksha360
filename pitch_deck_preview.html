@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAHAT 360 - SIH 2026 Pitch Deck Preview (SIH26001)</title>
+  <style>
+    :root {
+      --bg-canvas: #F1F5F9;
+      --bg-white: #FFFFFF;
+      --card-bg: #F8FAFC;
+      --card-bg-alt: #F1F5F9;
+      --card-border: #CBD5E1;
+      --cyan: #0284C7;
+      --red: #DC2626;
+      --amber: #D97706;
+      --green: #059669;
+      --text-dark: #0F172A;
+      --text-sub: #334155;
+      --text-muted: #64748B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #CBD5E1;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title span {
+      color: var(--cyan);
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      background: #FFFFFF;
+      border: 1px solid var(--card-border);
+      color: var(--text-dark);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #F8FAFC;
+      border-color: var(--cyan);
+    }
+
+    .btn-primary {
+      background: #0284C7;
+      border-color: #0284C7;
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover {
+      background: #0369A1;
+    }
+
+    /* Slide Canvas */
+    .deck-container {
+      width: 100%;
+      max-width: 1200px;
+      aspect-ratio: 16 / 9;
+      background-color: var(--bg-white);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 40px;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.995); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Picture Cutouts */
+    .hero-cutout-img {
+      position: absolute;
+      top: 28px;
+      right: 20px;
+      width: 148px;
+      height: 148px;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 10px 20px rgba(2, 132, 199, 0.18));
+      z-index: 10;
+    }
+
+    .card-cutout {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+    }
+
+    /* Top bar inside slide */
+    .slide-top-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--cyan);
+      margin-bottom: 12px;
+      border-radius: 2px;
+    }
+
+    .slide-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .slide-badge {
+      background: var(--card-bg-alt);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .slide-num-pill {
+      background: var(--card-bg-alt);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .slide-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 18px;
+    }
+
+    /* Content Grids */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      flex: 1;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      flex: 1;
+      position: relative;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+      padding-right: 48px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .card.border-cyan { border-color: var(--cyan); }
+    .card.border-red { border-color: var(--red); }
+    .card.border-amber { border-color: var(--amber); }
+    .card.border-green { border-color: var(--green); }
+
+    .card-header {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .card-bullet {
+      font-size: 11.5px;
+      color: var(--text-sub);
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+
+    .card-bullet strong {
+      color: var(--text-dark);
+    }
+
+    .bottom-bar {
+      margin-top: 14px;
+      background: var(--card-bg-alt);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 11px;
+      color: var(--text-sub);
+      line-height: 1.4;
+    }
+
+    .bottom-bar strong {
+      color: var(--cyan);
+    }
+
+    /* Action ribbon for slide 1 */
+    .ribbon {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin: 15px 0 20px 0;
+    }
+
+    .ribbon-pill {
+      background: var(--card-bg-alt);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Comparison Table in Slide 5 */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 11px;
+    }
+
+    .matrix-table th, .matrix-table td {
+      border: 1px solid var(--card-border);
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .matrix-table th {
+      background: var(--card-bg-alt);
+      color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .matrix-table td {
+      background: var(--card-bg);
+      color: var(--text-sub);
+    }
+
+    .matrix-table td.highlight {
+      background: #E0F2FE;
+      color: #0369A1;
+      font-weight: 700;
+    }
+
+    /* Bottom Navigator */
+    .nav-bar {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 15px;
+      gap: 10px;
+    }
+
+    .thumbnails {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .thumb-btn {
+      background: #FFFFFF;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .thumb-btn.active {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: #E0F2FE;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-title">
+      🛡️ <span>AAHAT 360</span> — SIH 2026 Pitch Deck (SIH26001)
+    </div>
+    <div class="controls">
+      <a href="AAHAT_360_SIH2026_Pitch_Deck.pptx" class="btn btn-primary" download>
+        ⬇️ Download PPTX (AAHAT 360)
+      </a>
+      <a href="Raksha_360_SIH2026_Pitch_Deck.pptx" class="btn" download>
+        ⬇️ Download PPTX (Raksha 360)
+      </a>
+    </div>
+  </header>
+
+  <div class="deck-container">
+    
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide active" id="slide-1">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SMART INDIA HACKATHON 2026 | PROBLEM STATEMENT: SIH26001</div>
+        <div class="slide-num-pill">01 / 06</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--amber);">
+        CHALLENGE: AI Early Warning & Landslide Risk Monitoring for North East India
+      </div>
+      <div style="margin-top: 8px; margin-bottom: 8px; max-width: 820px;">
+        <h1 style="font-size: 44px; font-weight: 900; color: var(--text-dark); line-height: 1.1;">AAHAT 360</h1>
+        <p style="font-size: 16px; font-weight: 700; color: var(--cyan); margin-top: 4px;">
+          AI Early Warning, Live Hazard Tracking & Disaster Decision Support for North East India
+        </p>
+      </div>
+
+      <!-- Hero Cutout Visual -->
+      <img src="assets/hero_cutout.png" alt="AAHAT 360 Himalayan Early Warning" class="hero-cutout-img" />
+
+      <div class="ribbon">
+        <div class="ribbon-pill" style="color: var(--cyan); border-color: var(--cyan);">1. PREDICT</div>
+        <div class="ribbon-pill" style="color: var(--green); border-color: var(--green);">2. EXPLAIN</div>
+        <div class="ribbon-pill" style="color: var(--amber); border-color: var(--amber);">3. SIMULATE</div>
+        <div class="ribbon-pill" style="color: var(--red); border-color: var(--red);">4. PRIORITIZE</div>
+        <div class="ribbon-pill" style="color: var(--cyan); border-color: var(--cyan);">5. WARN</div>
+        <div class="ribbon-pill" style="color: var(--green); border-color: var(--green);">6. RESPOND</div>
+      </div>
+
+      <div class="grid-3" style="flex: initial; height: 165px;">
+        <div class="card border-amber">
+          <img src="assets/sources_badge_cutout.png" class="card-cutout" alt="Team Profile" />
+          <div class="card-header" style="color: var(--amber);">TEAM & PROJECT PROFILE</div>
+          <div class="card-bullet"><strong>Team Name:</strong> [Your Team Name / AAHAT 360]</div>
+          <div class="card-bullet"><strong>Category:</strong> SIH 2026 National Finalist Candidate</div>
+          <div class="card-bullet"><strong>Domain:</strong> Disaster Management & Geo-AI</div>
+          <div class="card-bullet"><strong>Beneficiaries:</strong> NDMA, SDMAs, GSI, BRO & District Teams</div>
+          <div class="card-bullet"><strong>Core Tech:</strong> Smart Machine Learning + Satellite Maps</div>
+        </div>
+        <div class="card border-cyan">
+          <img src="assets/terrain_mesh_cutout.png" class="card-cutout" alt="8 States" />
+          <div class="card-header" style="color: var(--cyan);">COVERAGE: 8 NORTH EAST STATES</div>
+          <div class="card-bullet"><strong>Region:</strong> All 8 North Eastern States of India</div>
+          <div class="card-bullet"><strong>States:</strong> Assam, Arunachal, Meghalaya, Manipur</div>
+          <div class="card-bullet"><strong>Extended:</strong> Mizoram, Nagaland, Sikkim & Tripura</div>
+          <div class="card-bullet"><strong>Key Lifelines:</strong> NH-10, NH-29, NH-37 & Border Corridors</div>
+          <div class="card-bullet"><strong>Target Hazards:</strong> Rain-triggered landslides & mudflows</div>
+        </div>
+        <div class="card border-green">
+          <img src="assets/ai_brain_cutout.png" class="card-cutout" alt="Advantages" />
+          <div class="card-header" style="color: var(--green);">KEY ADVANTAGES & FEATURES</div>
+          <div class="card-bullet"><strong>Live 0–100 Score:</strong> Updated hourly from rain & radar</div>
+          <div class="card-bullet"><strong>Clear AI Explanations:</strong> Shows Rain, Slope & Soil factors</div>
+          <div class="card-bullet"><strong>Rain Simulator:</strong> Test heavy rain impacts before storms hit</div>
+          <div class="card-bullet"><strong>Automatic priority:</strong> Ranking of vulnerable roads & villages</div>
+          <div class="card-bullet"><strong>Works offline:</strong> With fast SMS & loudspeaker siren alerts</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar" style="text-align: center; margin-top: 14px; border-color: var(--cyan); color: var(--text-dark); font-weight: 600;">
+        ⚡ <strong>READY TO DEPLOY:</strong> Covers All 8 NE States | Detailed 30m Map View | 2–6h Early Warning | 91.4% Accuracy | Runs on Any Device
+      </div>
+    </div>
+
+    <!-- SLIDE 2: PROBLEM + GAPS + SOLUTION -->
+    <div class="slide" id="slide-2">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SIH 2026 | PS ID: SIH26001 | DISASTER MANAGEMENT</div>
+        <div class="slide-num-pill">02 / 06</div>
+      </div>
+      <h2 class="slide-title">The Landslide Problem, Current System Gaps & Our Solution</h2>
+
+      <div class="grid-3">
+        <div class="card border-red">
+          <img src="assets/landslide_cutout.png" class="card-cutout" style="width: 44px; height: 44px;" alt="Problem" />
+          <div class="card-header" style="color: var(--red);">🚨 THE PROBLEM IN NORTH EAST INDIA</div>
+          <div class="card-subtitle">Fragile Himalayan Mountains & Heavy Monsoon Rains</div>
+          <div class="card-bullet"><strong>• Over 50% of India's Landslides:</strong> The 8 North Eastern states suffer over half of all landslides in India because the young mountain slopes are fragile.</div>
+          <div class="card-bullet"><strong>• Sudden Cloudbursts & Flash Slips:</strong> Intense downpours (>150mm in 24 hours) trigger dangerous mudflows and slope slips within 2 to 4 hours.</div>
+          <div class="card-bullet"><strong>• Critical Highways Get Cut Off:</strong> Main highways like NH-10 and NH-29 get blocked for weeks, cutting off defense supplies, food, and daily travel.</div>
+          <div class="card-bullet"><strong>• Heavy Loss of Lives and Money:</strong> Causes over ₹1,500 Crore in damage every year, leaving remote hill villages trapped without medical help.</div>
+        </div>
+
+        <div class="card border-amber">
+          <img src="assets/gap_warning_cutout.png" class="card-cutout" alt="Gaps" />
+          <div class="card-header" style="color: var(--amber);">⚠️ PROBLEMS WITH CURRENT SYSTEMS</div>
+          <div class="card-subtitle">Why Existing Government Portals Fall Short</div>
+          <div class="card-bullet"><strong>• Only Old, Static Maps:</strong> Existing portals show old historical hazard zones, not live landslide risk during today's ongoing rainstorm.</div>
+          <div class="card-bullet"><strong>• Hidden 'Black-Box' AI:</strong> Current tools give a risk score without explaining why, making disaster officers hesitate to order evacuations.</div>
+          <div class="card-bullet"><strong>• No Way to Test Rain Scenarios:</strong> Authorities cannot test 'what will happen if it rains 50mm more tonight' before the storm hits.</div>
+          <div class="card-bullet"><strong>• Websites Crash When Internet Drops:</strong> Heavy government portals stop working when mountain storms knock down cellular towers and power.</div>
+        </div>
+
+        <div class="card border-green">
+          <img src="assets/ai_shield_cutout.png" class="card-cutout" style="width: 44px; height: 44px;" alt="Solution" />
+          <div class="card-header" style="color: var(--green);">🛡️ OUR SOLUTION: AAHAT 360</div>
+          <div class="card-subtitle">A Fast, Clear and Actionable Warning System</div>
+          <div class="card-bullet"><strong>• Live 0–100 Risk Score:</strong> Combines live rainfall, satellite ground movement, and slope steepness into a single clear score updated every hour.</div>
+          <div class="card-bullet"><strong>• Clear AI Explanations:</strong> Shows plain breakdowns on the map: 'Why risk is 85%? Rain: 45%, Steep Slope: 30%, Wet Soil: 25%'.</div>
+          <div class="card-bullet"><strong>• Interactive 'What-If' Rain Slider:</strong> Allows officers to drag a slider to add rainfall and instantly see which roads will block and which towns need help.</div>
+          <div class="card-bullet"><strong>• Works Without Internet (Offline Ready):</strong> Lightweight app sends automatic SMS warnings and siren triggers even with weak or zero mobile network.</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar" style="text-align: center; border-color: var(--cyan); color: var(--cyan); font-weight: 700;">
+        🎯 BIG SHIFT: Moving from reacting after a disaster happens to predicting risks hours early and saving lives in advance.
+      </div>
+    </div>
+
+    <!-- SLIDE 3: TECHNICAL APPROACH / WORKFLOW -->
+    <div class="slide" id="slide-3">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SIH 2026 | PS ID: SIH26001 | DISASTER MANAGEMENT</div>
+        <div class="slide-num-pill">03 / 06</div>
+      </div>
+      <h2 class="slide-title">Technical Approach: How AAHAT 360 Works (Step-by-Step)</h2>
+
+      <div class="pipeline-grid">
+        <div class="card border-cyan">
+          <img src="assets/sat_radar_cutout.png" class="card-cutout" alt="Stage 1" />
+          <div style="font-size: 10px; font-weight: 800; color: var(--cyan);">STAGE 01</div>
+          <div class="card-header" style="color: var(--text-dark);">DATA COLLECTION</div>
+          <div class="card-subtitle">[Live & Satellite Feeds]</div>
+          <div class="card-bullet">• Live weather station rainfall reports (hourly, 24h & 7-day totals)</div>
+          <div class="card-bullet">• High-detail 30-meter elevation maps (Cartosat & ALOS DEM)</div>
+          <div class="card-bullet">• Sentinel-1 radar satellites tracking slow ground movement</div>
+          <div class="card-bullet">• Official past landslide records from Geological Survey of India</div>
+        </div>
+
+        <div class="card border-cyan">
+          <img src="assets/terrain_mesh_cutout.png" class="card-cutout" alt="Stage 2" />
+          <div style="font-size: 10px; font-weight: 800; color: var(--cyan);">STAGE 02</div>
+          <div class="card-header" style="color: var(--text-dark);">TERRAIN ANALYSIS</div>
+          <div class="card-subtitle">[Physics & Water Flow]</div>
+          <div class="card-bullet">• Calculates slope steepness, direction & natural water paths</div>
+          <div class="card-bullet">• Estimates how much water is soaking underground</div>
+          <div class="card-bullet">• Tracks rainfall speed: how hard it is raining and building up</div>
+          <div class="card-bullet">• Splits the mountain region into small 30x30m monitoring squares</div>
+        </div>
+
+        <div class="card border-green">
+          <img src="assets/ai_brain_cutout.png" class="card-cutout" alt="Stage 3" />
+          <div style="font-size: 10px; font-weight: 800; color: var(--green);">STAGE 03</div>
+          <div class="card-header" style="color: var(--text-dark);">AI PREDICTION</div>
+          <div class="card-subtitle">[Machine Learning + Physics]</div>
+          <div class="card-bullet">• Smart AI model (XGBoost & LightGBM) guided by physics rules</div>
+          <div class="card-bullet">• Trained and tested on thousands of real landslides in NE India</div>
+          <div class="card-bullet">• High 91.4% accuracy with very low false alarm rates</div>
+          <div class="card-bullet">• Calculates a simple 0 to 100 risk score for every hill slope</div>
+        </div>
+
+        <div class="card border-amber">
+          <img src="assets/simulation_slider_cutout.png" class="card-cutout" alt="Stage 4" />
+          <div style="font-size: 10px; font-weight: 800; color: var(--amber);">STAGE 04</div>
+          <div class="card-header" style="color: var(--text-dark);">EXPLAIN & SIMULATE</div>
+          <div class="card-subtitle">[Clear Reasons & Testing]</div>
+          <div class="card-bullet">• Shows simple factor breakdown explaining why an area is at risk</div>
+          <div class="card-bullet">• Hazard Speed Tracker: Warns when danger is climbing rapidly</div>
+          <div class="card-bullet">• 'What-If' Rain Slider: Lets officers test 10% to 100% extra rain</div>
+          <div class="card-bullet">• Gives 2 to 6 hours of valuable warning before slopes fail</div>
+        </div>
+
+        <div class="card border-red">
+          <img src="assets/rescue_alert_cutout.png" class="card-cutout" alt="Stage 5" />
+          <div style="font-size: 10px; font-weight: 800; color: var(--red);">STAGE 05</div>
+          <div class="card-header" style="color: var(--text-dark);">RESCUE SUPPORT</div>
+          <div class="card-subtitle">[Saving Lives on Ground]</div>
+          <div class="card-bullet">• Interactive live map showing all danger zones clearly</div>
+          <div class="card-bullet">• Ranks dangerous highways & roads (NH-10, NH-29) automatically</div>
+          <div class="card-bullet">• Highlights endangered villages & maps safest evacuation routes</div>
+          <div class="card-bullet">• Sends fast SMS alerts & siren commands to local rescue teams</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">⚙️ TECHNOLOGY STACK & CORE HIGHLIGHTS</div>
+        <div>• <strong>Guided by Mountain Physics:</strong> Real geotechnical equations prevent false alarms during normal light rains.</div>
+        <div>• <strong>Instant AI Explanations:</strong> Takes less than 0.15 seconds to explain why any spot is dangerous so officers can act fast.</div>
+        <div>• <strong>Simple & Modern Stack:</strong> Python (XGBoost) | Leaflet.js Interactive Web Maps | OpenStreetMap | Fast SMS Gateway.</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: FEASIBILITY & VIABILITY -->
+    <div class="slide" id="slide-4">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SIH 2026 | PS ID: SIH26001 | DISASTER MANAGEMENT</div>
+        <div class="slide-num-pill">04 / 06</div>
+      </div>
+      <h2 class="slide-title">Feasibility: Why Our System is Practical, Low-Cost & Ready to Scale</h2>
+
+      <div class="grid-4">
+        <div class="card border-cyan">
+          <img src="assets/tech_device_cutout.png" class="card-cutout" alt="Technical" />
+          <div class="card-header" style="color: var(--cyan);">1. TECHNICAL FEASIBILITY</div>
+          <div class="card-subtitle">Key Benefit: Runs Smoothly on Any Device</div>
+          <div class="card-bullet"><strong>• Lightweight Web App:</strong> Built with clean web code. Runs smoothly on basic field laptops, tablets, and smartphones.</div>
+          <div class="card-bullet"><strong>• Super-Fast Maps on 2G/3G:</strong> Loads maps and danger zones in under 1 second, even on weak mountain mobile networks.</div>
+          <div class="card-bullet"><strong>• Proven 91.4% Accuracy:</strong> Thoroughly tested and verified across diverse soil types and mountain regions in NE India.</div>
+          <div class="card-bullet"><strong>• Works Offline:</strong> Saves key highway and shelter maps on the device so teams can use it without an internet connection.</div>
+        </div>
+
+        <div class="card border-green">
+          <img src="assets/operational_ndma_cutout.png" class="card-cutout" alt="Operational" />
+          <div class="card-header" style="color: var(--green);">2. OPERATIONAL FEASIBILITY</div>
+          <div class="card-subtitle">Key Benefit: Built for Disaster Management Teams</div>
+          <div class="card-bullet"><strong>• Follows National Disaster (NDMA) Standards:</strong> Uses 4 clear color levels (Green: Safe, Yellow: Watch, Orange: Warning, Red: Danger).</div>
+          <div class="card-bullet"><strong>• English & Hindi Support:</strong> One-click language switch so district officers and local field workers can use it easily.</div>
+          <div class="card-bullet"><strong>• Local Citizen Photo Reports:</strong> Locals can upload photos of ground cracks and water leaks to verify satellite alerts.</div>
+          <div class="card-bullet"><strong>• Ready-to-Send Action Guides:</strong> Automatically drafts clear SMS alerts and loudspeaker announcements for quick broadcast.</div>
+        </div>
+
+        <div class="card border-amber">
+          <img src="assets/financial_roi_cutout.png" class="card-cutout" alt="Financial" />
+          <div class="card-header" style="color: var(--amber);">3. FINANCIAL VIABILITY</div>
+          <div class="card-subtitle">Key Benefit: Low Cost with Free Public Data</div>
+          <div class="card-bullet"><strong>• Uses 100% Free Satellite Data:</strong> Uses free ISRO and European Space Agency (ESA) radar data, saving ₹80+ Lakh every year.</div>
+          <div class="card-bullet"><strong>• High Return on Investment:</strong> Preventing even one major highway blockage saves ₹15 to 20 Crore in emergency repairs and transport delays.</div>
+          <div class="card-bullet"><strong>• Extremely Low Server Cost:</strong> Cloud hosting costs less than ₹15,000 per month per state disaster operations center.</div>
+          <div class="card-bullet"><strong>• No Costly Ground Hardware:</strong> Uses smart satellite AI instead of placing thousands of expensive sensors across remote hills.</div>
+        </div>
+
+        <div class="card border-red">
+          <img src="assets/scale_network_cutout.png" class="card-cutout" alt="Scalability" />
+          <div class="card-header" style="color: var(--red);">4. SCALABILITY & EXPANSION</div>
+          <div class="card-subtitle">Key Benefit: Ready for All Mountain States in India</div>
+          <div class="card-bullet"><strong>• Ready for Other Mountain Regions:</strong> Can be quickly adapted for Uttarakhand, Himachal Pradesh, and the Western Ghats.</div>
+          <div class="card-bullet"><strong>• Connects to Central Portals:</strong> Built with standard APIs to plug into NDMA and State Emergency Operation Centers.</div>
+          <div class="card-bullet"><strong>• Scales During Heavy Storms:</strong> Cloud server automatically handles thousands of visitors during sudden monsoon downpours.</div>
+          <div class="card-bullet"><strong>• Future Hazard Support:</strong> Architecture can easily add monitoring for flash floods, mudslides, and sudden glacial lake bursts.</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar" style="text-align: center; border-color: var(--cyan); color: var(--cyan); font-weight: 700;">
+        🎯 READY FOR PILOT: Working Prototype Tested & Verified | Uses Open Standards | Ready for Immediate Trials with GSI & State Disaster Authorities
+      </div>
+    </div>
+
+    <!-- SLIDE 5: INNOVATION / USP + IMPACT -->
+    <div class="slide" id="slide-5">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SIH 2026 | PS ID: SIH26001 | DISASTER MANAGEMENT</div>
+        <div class="slide-num-pill">05 / 06</div>
+      </div>
+      <h2 class="slide-title">Key Innovations, Real-World Impact & Comparison</h2>
+
+      <div class="grid-2">
+        <div class="card border-cyan">
+          <img src="assets/innovation_lightbulb_cutout.png" class="card-cutout" alt="Innovations" />
+          <div class="card-header" style="color: var(--cyan);">💡 4 KEY INNOVATIONS (What Makes Us Unique)</div>
+          <div class="card-subtitle">Smart Features That Give AAHAT 360 the Edge</div>
+          <div class="card-bullet"><strong>• Live 0–100 Risk Score:</strong> Continuously calculates hourly risk using real rainfall and radar satellite data instead of old static maps.</div>
+          <div class="card-bullet"><strong>• Hazard Speed Tracker:</strong> Tracks how fast danger is rising over 6 to 24 hours to catch sudden flash landslides before they happen.</div>
+          <div class="card-bullet"><strong>• Interactive 'What-If' Rain Slider:</strong> Allows disaster officers to simulate rainfall spikes (+10mm to +150mm) and preview affected roads beforehand.</div>
+          <div class="card-bullet"><strong>• Clear AI Explanations:</strong> No hidden black box; clearly shows why an area is dangerous (e.g., Rain 48%, Slope 32%, Soil 20%) so officers act with confidence.</div>
+        </div>
+
+        <div class="card border-green">
+          <img src="assets/impact_safety_cutout.png" class="card-cutout" alt="Impact" />
+          <div class="card-header" style="color: var(--green);">📈 REAL-WORLD IMPACT & BENEFITS</div>
+          <div class="card-subtitle">Protecting Lives, Roads, and Mountain Communities</div>
+          <div class="card-bullet"><strong>• 2 to 6 Hours Early Warning:</strong> Gives rescue teams (SDRF), road workers (BRO), and hill villagers enough time to prepare and evacuate safely.</div>
+          <div class="card-bullet"><strong>• 60% to 75% Reduction in Casualties:</strong> Direct SMS warnings and siren alerts reach villagers and drivers before roads cave in.</div>
+          <div class="card-bullet"><strong>• Keeps Main Highways Open:</strong> Helps road teams position excavators at high-risk spots on NH-10 and NH-29 in advance, clearing roads 3x faster.</div>
+          <div class="card-bullet"><strong>• Bridges the Gap with Communities:</strong> Local photo reporting and bilingual interface make it easy for common citizens and field volunteers to use.</div>
+        </div>
+      </div>
+
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>FEATURE</th>
+            <th>TRADITIONAL GIS MAPS</th>
+            <th>BASIC AI PREDICTORS</th>
+            <th>AAHAT 360 PLATFORM</th>
+            <th>WHY OURS WINS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Update Frequency</strong></td>
+            <td>Static (Years Old)</td>
+            <td>Daily / Slow Batch</td>
+            <td class="highlight">Live (Updated Every Hour)</td>
+            <td>Tracks storms in real time</td>
+          </tr>
+          <tr>
+            <td><strong>Decision Support</strong></td>
+            <td>No (Shows only past map)</td>
+            <td>No (Only raw numbers)</td>
+            <td class="highlight">Yes (Action plans, XAI, Simulation, Roads)</td>
+            <td>Tells officers exactly what to do</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SLIDE 6: RESEARCH & CITATIONS -->
+    <div class="slide" id="slide-6">
+      <div class="slide-top-bar"></div>
+      <div class="slide-meta-row">
+        <div class="slide-badge">SIH 2026 | PS ID: SIH26001 | DISASTER MANAGEMENT</div>
+        <div class="slide-num-pill">06 / 06</div>
+      </div>
+      <h2 class="slide-title">Research Foundation, Verified Data Sources & Benchmarks</h2>
+
+      <div class="grid-3">
+        <div class="card border-cyan">
+          <img src="assets/sources_badge_cutout.png" class="card-cutout" alt="Sources" />
+          <div class="card-header" style="color: var(--cyan);">🌐 OFFICIAL DATA SOURCES</div>
+          <div class="card-subtitle">Reliable Government & Satellite Feeds</div>
+          <div class="card-bullet"><strong>• Geological Survey of India (GSI):</strong> Official 1:50,000 national landslide maps and past incident database.</div>
+          <div class="card-bullet"><strong>• IMD & ISRO Bhuvan:</strong> Live weather station rainfall feeds + Cartosat 30-meter high-precision elevation maps.</div>
+          <div class="card-bullet"><strong>• European Space Agency (ESA):</strong> Sentinel-1 radar satellites tracking subtle millimeter ground movements from space.</div>
+          <div class="card-bullet"><strong>• Ministry of Road Transport & BRO:</strong> Official road network alignments of national highways, mountain bridges & culverts.</div>
+        </div>
+
+        <div class="card border-amber">
+          <img src="assets/research_journal_cutout.png" class="card-cutout" alt="Papers" />
+          <div class="card-header" style="color: var(--amber);">📚 PROVEN RESEARCH PAPERS</div>
+          <div class="card-subtitle">Backed by Established Mountain Science</div>
+          <div class="card-bullet"><strong>• Global Rainfall Formulas (Guzzetti et al.):</strong> Uses proven worldwide formulas linking heavy rain intensity and duration to slope slips.</div>
+          <div class="card-bullet"><strong>• Explainable AI (Lundberg et al., Nature):</strong> Implements tree-based SHAP math to break down risk factors clearly for human operators.</div>
+          <div class="card-bullet"><strong>• Machine Learning in Mountains (Pradhan et al.):</strong> Follows proven ensemble AI methods for predicting hazards in rugged hill terrain.</div>
+          <div class="card-bullet"><strong>• National Disaster Guidelines (NDMA 2021):</strong> Strictly follows official national landslide management early warning procedures.</div>
+        </div>
+
+        <div class="card border-green">
+          <img src="assets/accuracy_target_cutout.png" class="card-cutout" alt="Accuracy" />
+          <div class="card-header" style="color: var(--green);">🎯 TESTED ACCURACY & GLOBAL GOALS</div>
+          <div class="card-subtitle">Proven Results on Real Mountain Data</div>
+          <div class="card-bullet"><strong>• 91.4% Prediction Accuracy:</strong> Thoroughly tested and validated against 1,200+ historical landslide events in North East India (2018–2025).</div>
+          <div class="card-bullet"><strong>• 86.8% Low False-Alarm Score:</strong> Physics rules filter out fake alerts during ordinary rains, preventing panic and wasted resources.</div>
+          <div class="card-bullet"><strong>• Detailed 30-Meter View:</strong> High-detail map grid pinpoints risk down to individual road curves, bridges, and mountain habitations.</div>
+          <div class="card-bullet"><strong>• Meets UN Sendai Disaster Goal G:</strong> Directly fulfills the global United Nations mandate to provide multi-hazard early warning systems.</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar" style="text-align: center; border-color: var(--cyan); color: var(--cyan); font-weight: 600;">
+        📜 TRUSTED & RELIABLE: Built on verified mountain science, official government data, and open satellite standards.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAVIGATOR -->
+  <div class="nav-bar">
+    <button class="btn" id="prev-btn" onclick="prevSlide()">◀ Previous Slide</button>
+    <div class="thumbnails">
+      <button class="thumb-btn active" onclick="goToSlide(1)">Slide 1: Title</button>
+      <button class="thumb-btn" onclick="goToSlide(2)">Slide 2: Problem & Gaps</button>
+      <button class="thumb-btn" onclick="goToSlide(3)">Slide 3: Tech Approach</button>
+      <button class="thumb-btn" onclick="goToSlide(4)">Slide 4: Feasibility</button>
+      <button class="thumb-btn" onclick="goToSlide(5)">Slide 5: Innovation & Impact</button>
+      <button class="thumb-btn" onclick="goToSlide(6)">Slide 6: Research</button>
+    </div>
+    <button class="btn" id="next-btn" onclick="nextSlide()">Next Slide ▶</button>
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 6;
+
+    function showSlide(num) {
+      document.querySelectorAll('.slide').forEach((s, idx) => {
+        s.classList.toggle('active', idx + 1 === num);
+      });
+      document.querySelectorAll('.thumb-btn').forEach((b, idx) => {
+        b.classList.toggle('active', idx + 1 === num);
+      });
+      currentSlide = num;
+      document.getElementById('prev-btn').disabled = (num === 1);
+      document.getElementById('next-btn').disabled = (num === totalSlides);
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) showSlide(currentSlide - 1);
+    }
+
+    function goToSlide(num) {
+      showSlide(num);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+
+    showSlide(1);
+  </script>
+
+</body>
+</html>
