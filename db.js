@@ -3,7 +3,9 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
-const LOCAL_DB_PATH = path.join(__dirname, 'data', 'local_storage.json');
+const LOCAL_DB_PATH = process.env.VERCEL
+  ? path.join('/tmp', 'local_storage.json')
+  : path.join(__dirname, 'data', 'local_storage.json');
 
 // In-memory / File-backed local store fallback
 class LocalStore {
@@ -24,7 +26,7 @@ class LocalStore {
         this.save();
       }
     } catch (err) {
-      console.warn('Could not read local_storage.json, resetting in-memory fallback:', err.message);
+      console.warn('Could not read local_storage.json, using in-memory fallback:', err.message);
     }
   }
 
@@ -34,7 +36,7 @@ class LocalStore {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Failed to write local_storage.json:', err.message);
+      console.warn('Local file write skipped (using in-memory):', err.message);
     }
   }
 

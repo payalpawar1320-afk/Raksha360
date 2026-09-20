@@ -479,6 +479,15 @@ function toggleCitizenAuthMode() {
   switchCitizenAuthTab(_citizenAuthTab === 'login' ? 'signup' : 'login');
 }
 
+async function safeJson(res) {
+  try {
+    var text = await res.text();
+    return text ? JSON.parse(text) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
 async function handleCitizenAuthSubmit(event) {
   event.preventDefault();
   var alertEl = document.getElementById('citizenAuthAlert');
@@ -504,9 +513,9 @@ async function handleCitizenAuthSubmit(event) {
       body: JSON.stringify(payload)
     });
 
-    var data = await res.json();
+    var data = await safeJson(res);
     if (!res.ok) {
-      throw new Error(data.error || 'Authentication failed.');
+      throw new Error(data.error || 'Authentication failed. Status: ' + res.status);
     }
 
     _currentUser = data.user;
@@ -569,9 +578,9 @@ async function handleAuthorityAuthSubmit(event) {
       body: JSON.stringify({ email: email, password: password, role: 'authority' })
     });
 
-    var data = await res.json();
+    var data = await safeJson(res);
     if (!res.ok) {
-      throw new Error(data.error || 'Authority authorization failed.');
+      throw new Error(data.error || 'Authority authorization failed. Status: ' + res.status);
     }
 
     _currentUser = data.user;
@@ -696,7 +705,7 @@ async function evaluateStationRiskAlert(station, triggerSource) {
       body: JSON.stringify(payload)
     });
 
-    var result = await res.json();
+    var result = await safeJson(res);
     if (result.alertTriggered && result.emailSent) {
       // Update UI Status Badge
       var badge = document.getElementById('alertBadgeStatus');
@@ -757,7 +766,7 @@ async function fetchAndRenderAlertHistory() {
   try {
     var res = await fetch('/api/alerts/history');
     if (!res.ok) return;
-    var data = await res.json();
+    var data = await safeJson(res);
     var history = data.history || [];
 
     // 1. Render in Citizen View drawer
