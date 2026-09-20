@@ -428,6 +428,76 @@ function initAuthUI() {
     if (citizenControls) citizenControls.style.display = 'none';
     if (guestHint) guestHint.style.display = 'block';
   }
+
+  // Update Early Warning Status Bar to reflect current station's actual risk level
+  var currentStName = (_currentUser && _currentUser.monitoredStation) ? _currentUser.monitoredStation : (_activeStation ? _activeStation.station : 'Kohima');
+  var matchedSt = (typeof NER_DATA !== 'undefined' && NER_DATA.stations) ? NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === currentStName.toLowerCase(); }) : null;
+  updateEarlyWarningStatusBar(matchedSt || _activeStation);
+}
+
+function updateEarlyWarningStatusBar(station) {
+  var badge = document.getElementById('alertBadgeStatus');
+  var dot = document.getElementById('alertPulseDot');
+  var headline = document.getElementById('alertStatusHeadline');
+  var sub = document.getElementById('alertStatusSub');
+  if (!badge || !station) return;
+
+  var score = station.risk_score || 0;
+  var level = (station.risk_level || 'LOW').toUpperCase();
+
+  if (level === 'CRITICAL' || score >= 75) {
+    badge.className = 'alert-badge-status alert-badge-status--sent';
+    badge.style.background = 'rgba(239, 68, 68, 0.25)';
+    badge.style.color = '#f87171';
+    badge.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+    badge.textContent = '🔴 CRITICAL ALERT';
+    if (dot) {
+      dot.style.background = '#ef4444';
+      dot.style.boxShadow = '0 0 10px #ef4444';
+    }
+    if (headline) {
+      headline.textContent = '🚨 Emergency Critical Risk Detected';
+      headline.style.color = '#f87171';
+    }
+    if (sub) {
+      sub.textContent = station.station + ' (' + station.state + ') risk score is ' + score + '/100. Emergency automated alerts active.';
+    }
+  } else if (level === 'HIGH' || score >= 55) {
+    badge.className = 'alert-badge-status alert-badge-status--sent';
+    badge.style.background = 'rgba(234, 88, 12, 0.25)';
+    badge.style.color = '#fb923c';
+    badge.style.borderColor = 'rgba(234, 88, 12, 0.6)';
+    badge.textContent = '🟠 HIGH ALERT';
+    if (dot) {
+      dot.style.background = '#ea580c';
+      dot.style.boxShadow = '0 0 10px #ea580c';
+    }
+    if (headline) {
+      headline.textContent = '⚠️ High Risk Condition Detected';
+      headline.style.color = '#fb923c';
+    }
+    if (sub) {
+      sub.textContent = station.station + ' (' + station.state + ') is in High Risk zone. Automated alerts active.';
+    }
+  } else {
+    // Normal / Safe
+    badge.className = 'alert-badge-status';
+    badge.style.background = 'rgba(16, 185, 129, 0.15)';
+    badge.style.color = '#34d399';
+    badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    badge.textContent = '🟢 All Normal';
+    if (dot) {
+      dot.style.background = '#10b981';
+      dot.style.boxShadow = '0 0 8px #10b981';
+    }
+    if (headline) {
+      headline.textContent = 'Risk Engine: Monitoring Active';
+      headline.style.color = '#f1f5f9';
+    }
+    if (sub) {
+      sub.textContent = 'Condition: High/Critical risk triggers real automated email.';
+    }
+  }
 }
 
 // ── Citizen Auth Modal Handlers ────────────────────────────────
@@ -641,10 +711,13 @@ async function onMonitoredStationChange(newStation) {
     console.warn('Could not save station preference:', e.message);
   }
 
-  // If newly selected station is currently in High/Critical state, evaluate alert
+  // If newly selected station is currently in High/Critical state, sync bar and evaluate alert
   var stationObj = NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === newStation.toLowerCase(); });
-  if (stationObj && stationObj.risk_score >= 60) {
-    evaluateStationRiskAlert(stationObj, 'automated');
+  if (stationObj) {
+    updateEarlyWarningStatusBar(stationObj);
+    if (stationObj.risk_level === 'HIGH' || stationObj.risk_level === 'CRITICAL' || stationObj.risk_score >= 55) {
+      evaluateStationRiskAlert(stationObj, 'automated');
+    }
   }
 }
 
@@ -874,6 +947,7 @@ function selectStation(s) {
   setDetailPanel(s);
   buildRainfallChart(s);
   updateAlertBanner(s);
+  updateEarlyWarningStatusBar(s);
   updateSimBase(s.risk_score);
   setText('simCurrentScore', s.risk_score);
   setText('simScore', s.risk_score);
@@ -1593,16 +1667,21 @@ function updateSim(val) {
     simScoreEl.style.color = newScore >= 75 ? '#b91c1c' : newScore >= 55 ? '#c2410c' : newScore >= 35 ? '#b45309' : '#166534';
   }
 
-  // Trigger automated alert evaluation when simulated risk crosses alert threshold (Score >= 60)
-  if (pct > 0 && newScore >= 60 && _activeStation) {
-    if (window._simAlertTimeout) clearTimeout(window._simAlertTimeout);
-    window._simAlertTimeout = setTimeout(function () {
-      var simStation = Object.assign({}, _activeStation, {
-        risk_score: newScore,
-        risk_level: newScore >= 75 ? 'CRITICAL' : 'HIGH'
-      });
-      evaluateStationRiskAlert(simStation, 'simulation');
-    }, 600);
+  // Update Early Warning Status Bar to simulated risk level
+  if (_activeStation) {
+    var simStation = Object.assign({}, _activeStation, {
+      risk_score: newScore,
+      risk_level: newScore >= 75 ? 'CRITICAL' : newScore >= 55 ? 'HIGH' : newScore >= 35 ? 'MODERATE' : 'LOW'
+    });
+    updateEarlyWarningStatusBar(pct > 0 ? simStation : _activeStation);
+
+    // Trigger automated alert evaluation when simulated risk crosses alert threshold (Score >= 55 / HIGH)
+    if (pct > 0 && (newScore >= 55 || simStation.risk_level === 'HIGH' || simStation.risk_level === 'CRITICAL')) {
+      if (window._simAlertTimeout) clearTimeout(window._simAlertTimeout);
+      window._simAlertTimeout = setTimeout(function () {
+        evaluateStationRiskAlert(simStation, 'simulation');
+      }, 600);
+    }
   }
 }
 
