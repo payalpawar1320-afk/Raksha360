@@ -622,13 +622,6 @@ async function handleCitizenAuthSubmit(event) {
     closeCitizenAuthModal();
     initAuthUI();
     fetchAndRenderAlertHistory();
-
-    // Check if the monitored area is currently high risk
-    if (_activeStation && _activeStation.station.toLowerCase() === _currentUser.monitoredStation.toLowerCase()) {
-      if (_activeStation.risk_score >= 60) {
-        evaluateStationRiskAlert(_activeStation, 'automated');
-      }
-    }
   } catch (err) {
     if (alertEl) {
       alertEl.className = 'auth-alert auth-alert--error';
@@ -737,13 +730,10 @@ async function onMonitoredStationChange(newStation) {
     console.warn('Could not save station preference:', e.message);
   }
 
-  // If newly selected station is currently in High/Critical state, sync bar and evaluate alert
+  // If newly selected station is currently in High/Critical state, sync status bar
   var stationObj = NER_DATA.stations.find(function(s) { return s.station.toLowerCase() === newStation.toLowerCase(); });
   if (stationObj) {
     updateEarlyWarningStatusBar(stationObj);
-    if (stationObj.risk_level === 'HIGH' || stationObj.risk_level === 'CRITICAL' || stationObj.risk_score >= 55) {
-      evaluateStationRiskAlert(stationObj, 'automated');
-    }
   }
 }
 
@@ -786,7 +776,14 @@ async function evaluateStationRiskAlert(station, triggerSource) {
   if (!station) return;
   triggerSource = triggerSource || 'automated';
 
-  var activeEmail = (_currentUser && _currentUser.email) ? _currentUser.email : 'payalpawar1320@gmail.com';
+  var activeEmail = (_currentUser && _currentUser.email) ? _currentUser.email : '';
+  if (!activeEmail) {
+    var sub = document.getElementById('alertStatusSub');
+    if (sub) {
+      sub.innerHTML = '⚠️ Please <a href="javascript:void(0)" onclick="openCitizenAuthModal()" style="color:#60a5fa;text-decoration:underline;">log in</a> to receive direct emergency alerts at your email address.';
+    }
+    return;
+  }
 
   var payload = {
     stationName: station.station,
@@ -837,7 +834,11 @@ async function evaluateStationRiskAlert(station, triggerSource) {
       }
 
       if (sub) {
-        sub.innerHTML = '✅ Emergency alert email dispatched to <strong>' + activeEmail + '</strong> (Status: ' + (result.status || 'Email Sent') + '). Check your inbox / spam folder!';
+        var msg = '✅ Emergency alert email dispatched to <strong>' + activeEmail + '</strong> (Status: ' + (result.status || 'Email Sent') + '). Check your inbox / spam folder!';
+        if (result.previewUrl) {
+          msg += '<br>🔗 <a href="' + result.previewUrl + '" target="_blank" style="color:#60a5fa;text-decoration:underline;font-weight:600;">View Test Email Online (Ethereal) →</a>';
+        }
+        sub.innerHTML = msg;
       }
 
       if (dispatchBtn) {

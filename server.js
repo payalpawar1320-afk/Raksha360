@@ -212,21 +212,27 @@ app.post('/api/alerts/evaluate-risk', async (req, res) => {
       });
     }
 
-    // Step 2: Query matching subscribers (Citizen monitoring this station + Authority)
-    const subscribers = await DB.getSubscribersForStation(stationName);
-    let recipientEmails = subscribers.map(s => s.email);
+    // Step 2: Determine recipients
+    let recipientEmails = [];
 
-    // If active user email is sent from frontend, guarantee it's in the alert list
-    if (currentUserEmail && typeof currentUserEmail === 'string' && currentUserEmail.includes('@')) {
-      if (!recipientEmails.includes(currentUserEmail.toLowerCase())) {
-        recipientEmails.push(currentUserEmail.toLowerCase());
+    if (triggerSource === 'user_manual_dispatch' && currentUserEmail && currentUserEmail.includes('@')) {
+      // When a logged-in user triggers a test/manual dispatch, send exclusively to their email
+      recipientEmails = [currentUserEmail.toLowerCase()];
+    } else {
+      // Automatic or authority dispatch: notify all station subscribers and active user
+      const subscribers = await DB.getSubscribersForStation(stationName);
+      recipientEmails = subscribers.map(s => s.email);
+
+      if (currentUserEmail && typeof currentUserEmail === 'string' && currentUserEmail.includes('@')) {
+        if (!recipientEmails.includes(currentUserEmail.toLowerCase())) {
+          recipientEmails.push(currentUserEmail.toLowerCase());
+        }
       }
-    }
 
-    // Always ensure verified test recipient (payalpawar1320@gmail.com) receives the alert for SIH Demo
-    const verifiedDemoEmail = (process.env.ALERT_TEST_RECIPIENT || 'payalpawar1320@gmail.com').toLowerCase();
-    if (!recipientEmails.includes(verifiedDemoEmail)) {
-      recipientEmails.push(verifiedDemoEmail);
+      const testRecipient = (process.env.ALERT_TEST_RECIPIENT || '').trim().toLowerCase();
+      if (testRecipient && !recipientEmails.includes(testRecipient)) {
+        recipientEmails.push(testRecipient);
+      }
     }
 
     if (recipientEmails.length === 0) {

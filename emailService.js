@@ -202,46 +202,46 @@ async function sendAutomatedRiskEmail({
 
   // 1. Try Resend API first if configured
   const resendApiKey = process.env.RESEND_API_KEY;
+  const pendingRecipientsForSmtp = [];
+
   if (resendApiKey && resendApiKey.startsWith('re_')) {
     try {
       const fromFormatted = `Raksha360 <${fromEmail}>`;
-      
-      // Resend free tier sends to individual verified inboxes
       let resendSuccessCount = 0;
       let lastResendId = null;
 
       for (const recipient of recipients) {
-        // Resend free tier restriction: onboarding@resend.dev only allows sending to payalpawar1320@gmail.com
-        if (fromEmail === 'onboarding@resend.dev' && recipient !== 'payalpawar1320@gmail.com' && !recipient.endsWith('@resend.dev')) {
-          console.log(`ℹ️ [Resend Free Tier] Skipping mock recipient ${recipient} (Free tier sends to verified owner payalpawar1320@gmail.com)`);
-          continue;
-        }
+        try {
+          const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              from: fromFormatted,
+              to: [recipient],
+              subject: subject,
+              html: html
+            })
+          });
 
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            from: fromFormatted,
-            to: [recipient],
-            subject: subject,
-            html: html
-          })
-        });
-
-        const resData = await res.json();
-        if (res.ok) {
-          resendSuccessCount++;
-          lastResendId = resData.id;
-          console.log(`✅ [Resend] Dispatched Real Email to ${recipient} (ID: ${resData.id})`);
-        } else {
-          console.warn(`⚠️ [Resend] Notice for ${recipient}:`, resData.message || resData);
+          const resData = await res.json();
+          if (res.ok) {
+            resendSuccessCount++;
+            lastResendId = resData.id;
+            console.log(`✅ [Resend] Dispatched Real Email to ${recipient} (ID: ${resData.id})`);
+          } else {
+            console.warn(`⚠️ [Resend] Notice for ${recipient}:`, resData.message || resData);
+            pendingRecipientsForSmtp.push(recipient);
+          }
+        } catch (fetchErr) {
+          console.warn(`⚠️ [Resend] Request failed for ${recipient}:`, fetchErr.message);
+          pendingRecipientsForSmtp.push(recipient);
         }
       }
 
-      if (resendSuccessCount > 0) {
+      if (resendSuccessCount > 0 && pendingRecipientsForSmtp.length === 0) {
         return {
           success: true,
           provider: 'Resend',
@@ -255,11 +255,21 @@ async function sendAutomatedRiskEmail({
     }
   }
 
-  // 2. Fallback to Nodemailer / SMTP / Ethereal
+  // 2. Fallback to Nodemailer / SMTP / Ethereal for remaining recipients
+  const fallbackRecipients = pendingRecipientsForSmtp.length > 0 ? pendingRecipientsForSmtp : recipients;
+  if (fallbackRecipients.length === 0) {
+    return {
+      success: true,
+      provider: 'Resend',
+      recipients: recipients,
+      timestamp: new Date()
+    };
+  }
+
   const mailTransporter = await getTransporter();
   const mailOptions = {
     from: `"${fromName}" <${fromEmail}>`,
-    to: recipients.join(', '),
+    to: fallbackRecipients.join(', '),
     subject: subject,
     html: html
   };

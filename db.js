@@ -146,7 +146,7 @@ async function initDB() {
 async function seedDefaultAccounts() {
   const defaultAuthEmail = (process.env.DEFAULT_AUTHORITY_EMAIL || 'authority@raksha360.gov.in').toLowerCase();
   const defaultAuthPass = process.env.DEFAULT_AUTHORITY_PASS || 'Admin@123';
-  const defaultCitizenEmail = (process.env.ALERT_TEST_RECIPIENT || 'payalpawar1320@gmail.com').toLowerCase();
+  const defaultCitizenEmail = (process.env.ALERT_TEST_RECIPIENT || 'citizen@raksha360.gov.in').toLowerCase();
   const salt = bcrypt.genSaltSync(10);
   const hash = bcrypt.hashSync(defaultAuthPass, salt);
 
@@ -167,7 +167,7 @@ async function seedDefaultAccounts() {
     const existingCitizen = await UserModel.findOne({ email: defaultCitizenEmail });
     if (!existingCitizen) {
       await UserModel.create({
-        name: 'Payal Pawar (Citizen)',
+        name: 'Demo Citizen',
         email: defaultCitizenEmail,
         passwordHash: hash,
         role: 'citizen',
@@ -196,7 +196,7 @@ async function seedDefaultAccounts() {
     if (!existingCitizen) {
       localStore.createUser({
         id: 'usr_seed_' + Date.now(),
-        name: 'Payal Pawar (Citizen)',
+        name: 'Demo Citizen',
         email: defaultCitizenEmail,
         passwordHash: hash,
         role: 'citizen',
