@@ -58,6 +58,23 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// 1b. Email config debug (safe — no secrets exposed)
+app.get('/api/debug/email-config', (req, res) => {
+  const smtpUser = process.env.SMTP_USER || '';
+  const smtpPass = process.env.SMTP_PASS || '';
+  const resendKey = process.env.RESEND_API_KEY || '';
+  res.json({
+    smtp_host: process.env.SMTP_HOST || '(not set)',
+    smtp_port: process.env.SMTP_PORT || '(not set)',
+    smtp_user_set: smtpUser.length > 0,
+    smtp_user_preview: smtpUser ? smtpUser.slice(0, 6) + '...' : '(empty)',
+    smtp_pass_set: smtpPass.length > 0,
+    resend_key_set: resendKey.startsWith('re_'),
+    alert_from_email: process.env.ALERT_FROM_EMAIL || '(not set)',
+    node_env: process.env.NODE_ENV || '(not set)'
+  });
+});
+
 // 2. Citizen Sign Up
 app.post('/api/auth/register', async (req, res) => {
   try {
