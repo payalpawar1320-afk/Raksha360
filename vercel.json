@@ -24,6 +24,14 @@
     {
       "src": "assets/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "data/ner_data.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "data/ner_predictions.js",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -46,6 +54,14 @@
     {
       "src": "/assets/(.*)",
       "dest": "/assets/$1"
+    },
+    {
+      "src": "/data/ner_data.js",
+      "dest": "/data/ner_data.js"
+    },
+    {
+      "src": "/data/ner_predictions.js",
+      "dest": "/data/ner_predictions.js"
     },
     {
       "src": "/(.*)",
