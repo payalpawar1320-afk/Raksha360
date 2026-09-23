@@ -32,6 +32,14 @@
     {
       "src": "data/ner_predictions.js",
       "use": "@vercel/static"
+    },
+    {
+      "src": "ne_mountains.jpg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "pitch_deck_preview.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -62,6 +70,14 @@
     {
       "src": "/data/ner_predictions.js",
       "dest": "/data/ner_predictions.js"
+    },
+    {
+      "src": "/ne_mountains.jpg",
+      "dest": "/ne_mountains.jpg"
+    },
+    {
+      "src": "/pitch_deck_preview.html",
+      "dest": "/pitch_deck_preview.html"
     },
     {
       "src": "/(.*)",
