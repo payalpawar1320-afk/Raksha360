@@ -42,7 +42,95 @@ Unlike static GIS susceptibility heatmaps, Raksha360 functions as a **dynamic ea
 - **Frontend**: Vanilla HTML5, Modern CSS3 (Glassmorphism & Responsive Dashboard), Vanilla JavaScript (ES6+)
 - **Mapping & Geospatial**: [Leaflet.js](https://leafletjs.com/) & OpenStreetMap tiles
 - **Analytics & Visualizations**: [Chart.js](https://www.chartjs.org/)
+- **Backend**: Node.js + Express (`server.js`), JWT authentication, Nodemailer/Resend email service
+- **Database**: MongoDB (via Mongoose) with automatic fallback to embedded local JSON storage
 - **Data & ML Pipelines**: Python (`pandas`, `scikit-learn`), CSV/JSON regional rainfall and station datasets
+
+---
+
+## 🗄️ Database Setup (MongoDB)
+
+Raksha360 supports two storage modes and **automatically selects the best available option** at startup:
+
+| Mode | When Used | Persistence |
+|---|---|---|
+| **MongoDB** (recommended) | `MONGODB_URI` is set in `.env` | Cloud / Server |
+| **Embedded Local Storage** | No URI provided or connection fails | `data/local_storage.json` |
+
+> **Note:** MongoDB is *optional* for local development. The app runs fully without it using the embedded JSON fallback.
+
+---
+
+### Option A — MongoDB Atlas (Cloud, Recommended for Production)
+
+1. **Create a free Atlas cluster**
+   - Go to [cloud.mongodb.com](https://cloud.mongodb.com) → **Create a Free Cluster** (M0 Sandbox).
+   - Choose a cloud provider & region close to your users.
+
+2. **Create a database user**
+   - In Atlas: **Database Access** → **Add New Database User**.
+   - Set a strong username and password. Keep them handy.
+
+3. **Whitelist your IP (or allow all)**
+   - In Atlas: **Network Access** → **Add IP Address**.
+   - For development, click **Allow Access from Anywhere** (`0.0.0.0/0`).
+   - For production, add only your server's IP.
+
+4. **Get your connection string**
+   - In Atlas: **Database** → **Connect** → **Connect your application**.
+   - Select **Node.js / 5.x or later** and copy the URI, e.g.:
+     ```
+     mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/raksha360?retryWrites=true&w=majority
+     ```
+   - Replace `<username>` and `<password>` with your database user credentials.
+
+5. **Set the URI in your `.env`**
+   ```env
+   MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/raksha360?retryWrites=true&w=majority
+   ```
+
+---
+
+### Option B — Local MongoDB (Self-hosted)
+
+1. **Install MongoDB Community Edition**
+   - Download from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community).
+   - Follow the installer instructions for your OS.
+
+2. **Start the MongoDB service**
+   ```bash
+   # macOS / Linux
+   sudo systemctl start mongod
+   # or
+   brew services start mongodb/brew/mongodb-community
+
+   # Windows (PowerShell as Admin)
+   net start MongoDB
+   ```
+
+3. **Verify it's running**
+   ```bash
+   mongosh
+   # You should see the MongoDB shell prompt
+   ```
+
+4. **Set the URI in your `.env`**
+   ```env
+   MONGODB_URI=mongodb://localhost:27017/raksha360
+   ```
+
+---
+
+### Collections Created Automatically
+
+Raksha360 uses Mongoose and **auto-creates** the following collections on first run:
+
+| Collection | Purpose |
+|---|---|
+| `users` | Registered citizens & authority accounts |
+| `alertlogs` | History of all dispatched early-warning alerts |
+
+Default seed accounts are also inserted on first startup (see `.env.example` for credentials).
 
 ---
 
@@ -54,6 +142,10 @@ SIH/
 ├── style.css                   # Modern responsive CSS styles & theme
 ├── script.js                   # Map logic, risk calculations & dashboard controller
 ├── translations.js             # Internationalization (EN / HI)
+├── server.js                   # Node.js/Express backend — auth, alerts, API routes
+├── db.js                       # Database layer — MongoDB (Mongoose) + local JSON fallback
+├── emailService.js             # Email alert dispatcher (Resend / Nodemailer SMTP)
+├── .env.example                # Environment variable template
 ├── SlopeSentinel_NER_SPEC.md   # Architectural & product specification
 ├── .gitignore                  # Git ignore rules
 ├── data/
@@ -71,13 +163,25 @@ SIH/
 
 ## 🚀 Getting Started Locally
 
-Because Raksha360 is built with modern, zero-dependency web standards, no complex build tools or `npm install` steps are required to run the frontend.
+Raksha360 can be run in two modes:
+
+| Mode | What you get | Requirements |
+|---|---|---|
+| **Frontend Only** | Interactive dashboard, maps, risk simulation | Browser only |
+| **Full Stack** | + Auth, user accounts, email alerts, persistent DB | Node.js 18+ |
+
+---
 
 ### Prerequisites
-- Any modern web browser (Chrome, Firefox, Edge, Safari)
-- (Optional) Python 3.8+ if you want to run the data collection/training scripts
 
-### Run with Local Server
+- Any modern web browser (Chrome, Firefox, Edge, Safari)
+- **Node.js 18+** — for the backend server (`server.js`)
+- (Optional) Python 3.8+ — for data collection/ML training scripts
+- (Optional) MongoDB — see [Database Setup](#️-database-setup-mongodb) above
+
+---
+
+### Mode 1 — Frontend Only (No install required)
 
 1. **Clone the repository**:
    ```bash
@@ -85,7 +189,7 @@ Because Raksha360 is built with modern, zero-dependency web standards, no comple
    cd <YOUR_REPO_NAME>
    ```
 
-2. **Start a local development server**:
+2. **Start a local static server**:
    - Using Python:
      ```bash
      python -m http.server 8000
@@ -94,11 +198,55 @@ Because Raksha360 is built with modern, zero-dependency web standards, no comple
      ```bash
      npx serve .
      ```
-   - Or using VS Code extension:
-     Right-click `index.html` and select **"Open with Live Server"**.
+   - Or using VS Code **Live Server** extension:
+     Right-click `index.html` → **"Open with Live Server"**.
 
-3. **Open in browser**:
-   Navigate to `http://localhost:8000`.
+3. **Open in browser**: Navigate to `http://localhost:8000`.
+
+---
+
+### Mode 2 — Full Stack (Node.js + MongoDB)
+
+1. **Clone the repository** (if not done already):
+   ```bash
+   git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPO_NAME>.git
+   cd <YOUR_REPO_NAME>
+   ```
+
+2. **Install Node.js dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` and fill in the required values:
+   ```env
+   PORT=5000
+   NODE_ENV=development
+   JWT_SECRET=<your_random_secret>
+
+   # MongoDB (optional — leave blank for local JSON fallback)
+   MONGODB_URI=mongodb+srv://<user>:<pass>@cluster0.xxx.mongodb.net/raksha360
+
+   # Email service (Resend or SMTP)
+   RESEND_API_KEY=<your_resend_key>
+   ```
+
+4. **Start the backend server**:
+   ```bash
+   node server.js
+   ```
+   You should see:
+   ```
+   ✅ Connected to MongoDB via Mongoose.
+   🚀 Raksha360 server running on http://localhost:5000
+   ```
+   > If no `MONGODB_URI` is set, you'll see `ℹ️ Using Local Embedded Storage` instead — the app still works fine.
+
+5. **Open in browser**: Navigate to `http://localhost:5000`.
 
 ---
 

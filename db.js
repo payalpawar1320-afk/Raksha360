@@ -1,7 +1,11 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Force Google DNS — fixes ECONNREFUSED on SRV lookups behind restrictive networks
+
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+
 
 const LOCAL_DB_PATH = process.env.VERCEL
   ? path.join('/tmp', 'local_storage.json')
@@ -118,8 +122,21 @@ const alertLogSchema = new mongoose.Schema({
   sentAt: { type: Date, default: Date.now }
 });
 
+const hazardReportSchema = new mongoose.Schema({
+  type:        { type: String, required: true },   // crack, slope, rock, road, seepage, landslide, other
+  description: { type: String, default: '' },
+  latitude:    { type: Number, default: null },
+  longitude:   { type: Number, default: null },
+  station:     { type: String, default: 'Unknown' },
+  state:       { type: String, default: 'NER' },
+  reportedBy:  { type: String, default: 'anonymous' },  // user email or 'anonymous'
+  status:      { type: String, enum: ['pending', 'verified', 'dismissed'], default: 'pending' },
+  submittedAt: { type: Date, default: Date.now }
+});
+
 let UserModel;
 let AlertLogModel;
+let HazardReportModel;
 
 async function initDB() {
   const mongoUri = process.env.MONGODB_URI;
@@ -127,8 +144,9 @@ async function initDB() {
     try {
       await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
       isMongoConnected = true;
-      UserModel = mongoose.model('User', userSchema);
-      AlertLogModel = mongoose.model('AlertLog', alertLogSchema);
+      UserModel         = mongoose.model('User', userSchema);
+      AlertLogModel     = mongoose.model('AlertLog', alertLogSchema);
+      HazardReportModel = mongoose.model('HazardReport', hazardReportSchema);
       console.log('✅ Connected to MongoDB via Mongoose.');
     } catch (err) {
       console.warn('⚠️ MongoDB connection failed:', err.message);
@@ -404,6 +422,58 @@ const DB = {
       }));
     }
     return localStore.getAlertLogs(limit);
+  },
+
+  // ── Hazard Reports ─────────────────────────────────────────────
+  async recordHazardReport({ type, description, latitude, longitude, station, state, reportedBy = 'anonymous' }) {
+    if (isMongoConnected && HazardReportModel) {
+      const doc = await HazardReportModel.create({
+        type, description, latitude, longitude, station, state, reportedBy
+      });
+      return {
+        id: doc._id.toString(),
+        type: doc.type,
+        description: doc.description,
+        latitude: doc.latitude,
+        longitude: doc.longitude,
+        station: doc.station,
+        state: doc.state,
+        reportedBy: doc.reportedBy,
+        status: doc.status,
+        submittedAt: doc.submittedAt
+      };
+    }
+    // Local fallback
+    const report = {
+      id: 'RPT-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      type, description, latitude, longitude, station, state, reportedBy,
+      status: 'pending',
+      submittedAt: new Date().toISOString()
+    };
+    if (!localStore.data.hazardReports) localStore.data.hazardReports = [];
+    localStore.data.hazardReports.unshift(report);
+    if (localStore.data.hazardReports.length > 500) localStore.data.hazardReports = localStore.data.hazardReports.slice(0, 500);
+    localStore.save();
+    return report;
+  },
+
+  async getHazardReports(limit = 100) {
+    if (isMongoConnected && HazardReportModel) {
+      const list = await HazardReportModel.find().sort({ submittedAt: -1 }).limit(limit);
+      return list.map(r => ({
+        id: r._id.toString(),
+        type: r.type,
+        description: r.description,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        station: r.station,
+        state: r.state,
+        reportedBy: r.reportedBy,
+        status: r.status,
+        submittedAt: r.submittedAt
+      }));
+    }
+    return (localStore.data.hazardReports || []).slice(0, limit);
   }
 };
 

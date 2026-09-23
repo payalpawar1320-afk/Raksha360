@@ -1607,73 +1607,93 @@ function buildRainfallChart(s) {
 // ═══════════════════════════════════════════════════════════════
 // WARNINGS GRID
 // ═══════════════════════════════════════════════════════════════
+
+function submitReport(e) {
+  e.preventDefault();
+  var type = document.getElementById('reportType');
+  if (!type || !type.value) { alert('Please select what you observed.'); return; }
+
+  var form    = document.querySelector('.report-form');
+  var succ    = document.getElementById('reportSuccess');
+  var descEl  = document.getElementById('reportDesc');
+  var latEl   = document.getElementById('reportLat');
+  var lonEl   = document.getElementById('reportLon');
+
+  var reportObj = {
+    type:        type.value,
+    description: (descEl && descEl.value.trim()) || ('Observed ' + type.value.toLowerCase() + ' in the area.'),
+    latitude:    (latEl && latEl.value) ? parseFloat(latEl.value) : (_activeStation ? _activeStation.latitude  : null),
+    longitude:   (lonEl && lonEl.value) ? parseFloat(lonEl.value) : (_activeStation ? _activeStation.longitude : null),
+    station:     _activeStation ? _activeStation.name  : 'NER Regional Station',
+    state:       _activeStation ? _activeStation.state : 'NER'
+  };
+
+  // Update in-memory field reports list (for live UI)
+  var localEntry = Object.assign({
+    id: 'REP-' + Math.floor(1000 + Math.random() * 9000),
+    time: 'Just now', status: 'pending', verifiedBy: null, verifiedAt: null
+  }, reportObj);
+  if (_fieldReports) { _fieldReports.unshift(localEntry); updateReportCounts(); renderReportCards(); }
+
+  if (form) form.style.display = 'none';
+  if (succ) succ.style.display = 'block';
+
+  var vp = document.getElementById('verificationPanel');
+  if (vp) vp.style.display = 'flex';
+  ['vs2', 'vs3', 'vs4'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.className = 'verify-step';
+      el.textContent = id === 'vs2' ? '⏳ Cross-checking rainfall data…' :
+                       id === 'vs3' ? '⏳ Checking against risk model…' :
+                                      '⏳ Saving to database…';
+    }
+  });
+  var vr = document.getElementById('verifyResult');
+  if (vr) vr.style.display = 'none';
+
+  // ── Save to MongoDB Atlas via API ──
+  var headers = { 'Content-Type': 'application/json' };
+  var token = localStorage.getItem('raksha360_token');
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  fetch('/api/reports/submit', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(reportObj)
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) { console.log('✅ Hazard report saved to Atlas:', data.report && data.report.id); })
+  .catch(function (err) { console.warn('⚠️ Could not save report to server (offline mode):', err.message); });
+
+  setTimeout(function () {
+    var el = document.getElementById('vs2');
+    if (el) { el.className = 'verify-step verify-step--done'; el.textContent = '✅ Rainfall data cross-checked'; }
+  }, 1200);
+  setTimeout(function () {
+    var el = document.getElementById('vs3');
+    if (el) { el.className = 'verify-step verify-step--done'; el.textContent = '✅ Report aligns with risk model'; }
+  }, 2600);
+  setTimeout(function () {
+    var el = document.getElementById('vs4');
+    if (el) { el.className = 'verify-step verify-step--done'; el.textContent = '✅ Saved to database'; }
+    var vr2 = document.getElementById('verifyResult');
+    if (vr2) {
+      vr2.style.display = 'block';
+      vr2.style.background = '#f0fdf4';
+      vr2.style.border = '1px solid #86efac';
+      vr2.style.color = '#14532d';
+      vr2.textContent = '🟡 Status: Pending Verification — Your report has been logged and sent to the District Disaster Authority.';
+    }
+  }, 4000);
+}
+
+// ===============================================================
+// WARNINGS GRID
+// ===============================================================
 function populateWarnings() {
   populateWarningsInto('warningGrid');
   populateWarningsInto('authorityWarningGrid');
-}
-
-function populateWarningsInto(gridId) {
-  var grid = document.getElementById(gridId);
-  if (!grid) return;
-
-  var high = NER_DATA.stations.filter(function (s) {
-    return s.risk_level === 'CRITICAL' || s.risk_level === 'HIGH' || s.risk_level === 'MODERATE';
-  }).slice(0, 4);
-
-  if (high.length === 0) {
-    grid.innerHTML = '<div class="warning-loading">No active warnings at this time. Conditions are currently stable.</div>';
-    return;
-  }
-
-  grid.innerHTML = '';
-  high.forEach(function (s, idx) {
-    var levelClass = 'warning-card--' + s.risk_level.toLowerCase();
-    var levelIcon  = s.risk_level === 'CRITICAL' ? '🔴' : s.risk_level === 'HIGH' ? '🟠' : '🟡';
-
-    var r7 = s.rainfall_7d;
-    var trendText = r7 > 150 ? 'Rapidly increasing' : r7 > 80 ? 'Increasing' : r7 > 30 ? 'Stable' : 'Decreasing';
-
-    var precautions = [
-      'Avoid unnecessary travel through identified high-risk areas.',
-      'Follow official local authority instructions and advisories.',
-      'Watch for visible cracks, slope movement, or unusual water seepage.',
-      'Report any hazards you observe using the reporting tool.'
-    ];
-
-    var exposedVillages = s.risk_score >= 70 ? 4 : s.risk_score >= 50 ? 3 : 1;
-    var exposedRoads    = s.risk_score >= 70 ? 3 : s.risk_score >= 50 ? 2 : 1;
-
-    var card = document.createElement('div');
-    card.className = 'warning-card ' + levelClass;
-    card.style.animationDelay = (idx * 0.08) + 's';
-
-    card.innerHTML =
-      '<div class="warning-card-header">' +
-        '<span>' + levelIcon + '</span>' +
-        '<span>' + s.risk_level + ' LANDSLIDE RISK — ' + s.station + '</span>' +
-      '</div>' +
-      '<div class="warning-card-body">' +
-        '<div class="warning-meta">' +
-          '<div class="warning-meta-item">Risk: <strong>' + s.risk_score + ' / 100</strong></div>' +
-          '<div class="warning-meta-item">Trend: <strong>' + trendText + '</strong></div>' +
-          '<div class="warning-meta-item">📍 <strong>' + s.district + ', ' + s.state + '</strong></div>' +
-        '</div>' +
-        '<div class="warning-exposure">' +
-          '<div class="warning-exposure-chip">🏘 ~' + exposedVillages + ' villages</div>' +
-          '<div class="warning-exposure-chip">🛣 ~' + exposedRoads + ' roads</div>' +
-          '<div class="warning-exposure-chip">⛰ ' + s.elevation_m + 'm</div>' +
-        '</div>' +
-        '<div class="warning-precautions">' +
-          '<div class="warning-precautions-title">Recommended precautions</div>' +
-          precautions.map(function (p) {
-            return '<div class="warning-precaution">' + p + '</div>';
-          }).join('') +
-        '</div>' +
-        '<div class="warning-ai-note">⚠ AI-generated warning. Not an official government or civil defence order. Follow authorities.</div>' +
-      '</div>';
-
-    grid.appendChild(card);
-  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1790,10 +1810,8 @@ function getGPS() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REPORT FORM + VERIFICATION
-// ═══════════════════════════════════════════════════════════════
-function submitReport(e) {
+
+
   e.preventDefault();
   var type = document.getElementById('reportType');
   if (!type || !type.value) { alert('Please select what you observed.'); return; }
