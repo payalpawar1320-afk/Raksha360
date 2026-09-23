@@ -19,6 +19,16 @@ app.use(express.json());
 // Serve static frontend files
 app.use(express.static(path.join(__dirname)));
 
+// ── DB Init Middleware (must be BEFORE all routes for Vercel cold starts) ──
+let dbInitPromise = null;
+app.use(async (req, res, next) => {
+  if (!dbInitPromise) {
+    dbInitPromise = initDB();
+  }
+  await dbInitPromise;
+  next();
+});
+
 // ── Auth Token Helper ──────────────────────────────────────────
 function generateToken(user) {
   return jwt.sign(
@@ -180,6 +190,60 @@ app.get('/api/alerts/history', async (req, res) => {
   }
 });
 
+// ── Hazard Reports ──────────────────────────────────────────────
+
+// 7a. Submit a Citizen Hazard Report → saved to MongoDB Atlas
+app.post('/api/reports/submit', async (req, res) => {
+  try {
+    const { type, description, latitude, longitude, station, state } = req.body;
+
+    if (!type) {
+      return res.status(400).json({ error: 'Hazard type is required.' });
+    }
+
+    // Get reporter email if logged in (optional)
+    let reportedBy = 'anonymous';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        reportedBy = decoded.email || 'anonymous';
+      } catch (_) { /* not logged in, stay anonymous */ }
+    }
+
+    const report = await DB.recordHazardReport({
+      type,
+      description: description || '',
+      latitude: latitude ? parseFloat(latitude) : null,
+      longitude: longitude ? parseFloat(longitude) : null,
+      station: station || 'Unknown',
+      state: state || 'NER',
+      reportedBy
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Hazard report submitted and saved to database.',
+      report
+    });
+  } catch (err) {
+    console.error('Hazard report error:', err);
+    return res.status(500).json({ error: 'Failed to save report: ' + err.message });
+  }
+});
+
+// 7b. Get all Hazard Reports (Authority dashboard)
+app.get('/api/reports', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const reports = await DB.getHazardReports(limit);
+    return res.json({ reports, total: reports.length });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // 7. Core Automated Risk Evaluation & Email Dispatch Engine
 app.post('/api/alerts/evaluate-risk', async (req, res) => {
   try {
@@ -306,15 +370,6 @@ app.post('/api/alerts/evaluate-risk', async (req, res) => {
   }
 });
 
-// Ensure DB initialized on cold starts
-let dbInitPromise = null;
-app.use(async (req, res, next) => {
-  if (!dbInitPromise) {
-    dbInitPromise = initDB();
-  }
-  await dbInitPromise;
-  next();
-});
 
 // Root fallback to index.html (only for non-API routes)
 app.get('*', (req, res, next) => {
